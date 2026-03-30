@@ -81,6 +81,70 @@ export enum UserRole {
     user = "user",
     guest = "guest"
 }
+
+// P2P Trading Types
+export type ListingStatus = {
+    __kind__: "Active";
+    Active: null;
+} | {
+    __kind__: "Locked";
+    Locked: null;
+} | {
+    __kind__: "Sold";
+    Sold: null;
+} | {
+    __kind__: "Cancelled";
+    Cancelled: null;
+};
+
+export type TradeStatus = {
+    __kind__: "Pending";
+    Pending: null;
+} | {
+    __kind__: "PaymentSent";
+    PaymentSent: null;
+} | {
+    __kind__: "Confirmed";
+    Confirmed: null;
+} | {
+    __kind__: "Rejected";
+    Rejected: null;
+} | {
+    __kind__: "Disputed";
+    Disputed: null;
+} | {
+    __kind__: "Cancelled";
+    Cancelled: null;
+};
+
+export interface P2PListing {
+    id: bigint;
+    sellerPrincipal: Principal;
+    sellerAnonId: string;
+    listedAnonId: string;
+    price: string;
+    iban: string;
+    status: ListingStatus;
+    createdAt: bigint;
+}
+
+export interface P2PTrade {
+    id: bigint;
+    listingId: bigint;
+    buyerPrincipal: Principal;
+    buyerAnonId: string;
+    sellerPrincipal: Principal;
+    sellerAnonId: string;
+    listedAnonId: string;
+    price: string;
+    iban: string;
+    status: TradeStatus;
+    proofScreenshotHash?: string;
+    referenceNumber?: string;
+    createdAt: bigint;
+    paymentSentAt?: bigint;
+}
+
 export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     blockUser(anonId: string): Promise<void>;
@@ -112,4 +176,17 @@ export interface backendInterface {
     setOnline(isOnline: boolean): Promise<void>;
     unblockUser(anonId: string): Promise<void>;
     updateUsername(username: string): Promise<void>;
+    // P2P Trading
+    createListing(price: string, iban: string): Promise<P2PListing>;
+    getActiveListings(): Promise<Array<P2PListing>>;
+    getMyListings(): Promise<Array<P2PListing>>;
+    cancelListing(listingId: bigint): Promise<void>;
+    buyListing(listingId: bigint): Promise<P2PTrade>;
+    markPaymentSent(tradeId: bigint, referenceNumber: string, screenshotHash: string): Promise<void>;
+    confirmTrade(tradeId: bigint): Promise<void>;
+    rejectTrade(tradeId: bigint): Promise<void>;
+    getMyTrades(): Promise<Array<P2PTrade>>;
+    getTrade(tradeId: bigint): Promise<P2PTrade | null>;
+    cancelExpiredTrades(): Promise<bigint>;
+    cancelTrade(tradeId: bigint): Promise<void>;
 }

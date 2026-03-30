@@ -5,9 +5,11 @@ import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import {
+  ArrowLeftRight,
   Check,
   Compass,
   Copy,
+  Crown,
   Lock,
   LogIn,
   LogOut,
@@ -28,6 +30,8 @@ import { toast } from "sonner";
 import type { User as UserType } from "./backend";
 import { ChatView } from "./components/ChatView";
 import { DiscoverTab } from "./components/DiscoverTab";
+import { P2PMarket } from "./components/P2PMarket";
+import { PremiumModal } from "./components/PremiumModal";
 import { QRCodeModal } from "./components/QRCodeModal";
 import { QRScannerModal } from "./components/QRScannerModal";
 import { RandomChat } from "./components/RandomChat";
@@ -39,6 +43,7 @@ import {
   useSetOnline,
   useUpdateUsername,
 } from "./hooks/useQueries";
+import { useUnreadCount } from "./hooks/useUnreadCount";
 
 function formatDate(nanoseconds: bigint): string {
   const ms = Number(nanoseconds / 1_000_000n);
@@ -216,6 +221,7 @@ function ProfileTab({
   const setOnline = useSetOnline();
   const [showQRCode, setShowQRCode] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [showPremium, setShowPremium] = useState(false);
 
   const handleShare = async () => {
     try {
@@ -289,7 +295,7 @@ function ProfileTab({
         </div>
 
         {/* QR Code buttons */}
-        <div className="flex gap-2 mb-5">
+        <div className="flex gap-2 mb-3">
           <Button
             variant="outline"
             size="sm"
@@ -312,6 +318,20 @@ function ProfileTab({
           </Button>
         </div>
 
+        {/* Premium ID button */}
+        <div className="mb-5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPremium(true)}
+            data-ocid="profile.open_modal_button"
+            className="w-full gap-2 h-10 text-sm border-amber-700/40 bg-amber-900/10 hover:bg-amber-900/20 text-amber-400 hover:text-amber-300"
+          >
+            <Crown className="w-4 h-4" />
+            Premium ID Seç
+          </Button>
+        </div>
+
         <QRCodeModal
           open={showQRCode}
           onClose={() => setShowQRCode(false)}
@@ -325,6 +345,11 @@ function ProfileTab({
             toast.success("Kullanıcı bulundu!");
             onStartChat(anonId);
           }}
+        />
+        <PremiumModal
+          open={showPremium}
+          onClose={() => setShowPremium(false)}
+          myAnonId={user.anonymousId}
         />
 
         <Separator className="mb-5 bg-white/5" />
@@ -443,29 +468,28 @@ function LandingPage({
   );
 }
 
-type AppTab = "chat" | "random" | "discover" | "profile";
+type AppTab = "chat" | "random" | "discover" | "p2p" | "profile";
 
-const NAV_ITEMS: { id: AppTab; label: string; icon: React.ReactNode }[] = [
-  { id: "chat", label: "Chat", icon: <MessageSquare className="w-5 h-5" /> },
-  { id: "random", label: "Random", icon: <Shuffle className="w-5 h-5" /> },
-  { id: "discover", label: "Discover", icon: <Compass className="w-5 h-5" /> },
-  { id: "profile", label: "Profile", icon: <User className="w-5 h-5" /> },
-];
+function UnreadBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
 
 export default function App() {
   const { login, clear, loginStatus, identity, isInitializing } =
     useInternetIdentity();
-  const {
-    actor,
-    isFetching: actorFetching,
-    isError: actorError,
-    refetch: refetchActor,
-  } = useActor();
+  const { actor, isFetching: actorFetching } = useActor();
   const { data: me, isLoading: meLoading } = useGetMe();
   const register = useRegister();
   const [isRegistering, setIsRegistering] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("profile");
   const [initialContact, setInitialContact] = useState<string | undefined>();
+
+  const { data: unreadCount = 0 } = useUnreadCount(me?.anonymousId ?? "");
 
   const isLoggedIn = !!identity;
 
@@ -478,11 +502,6 @@ export default function App() {
   const handleGenerate = async () => {
     if (!isLoggedIn) {
       await login();
-      return;
-    }
-    // If actor errored, retry fetching it first
-    if (actorError) {
-      refetchActor();
       return;
     }
     // Actor still loading
@@ -516,7 +535,6 @@ export default function App() {
       isLoggedIn &&
       !meLoading &&
       !actorFetching &&
-      !actorError &&
       me == null &&
       !isRegistering &&
       actor != null
@@ -527,17 +545,55 @@ export default function App() {
     isLoggedIn,
     meLoading,
     actorFetching,
-    actorError,
     me,
     isRegistering,
     actor,
     doRegister,
   ]);
 
+  // Mark messages as read when switching to chat tab
+  const handleTabChange = (tab: AppTab) => {
+    if (tab === "chat") {
+      const contacts: string[] = JSON.parse(
+        localStorage.getItem("anonychat_contacts") ?? "[]",
+      );
+      for (const contact of contacts) {
+        localStorage.setItem(`anonychat_read_${contact}`, String(Date.now()));
+      }
+    }
+    setActiveTab(tab);
+  };
+
   const year = new Date().getFullYear();
   const hostname =
     typeof window !== "undefined" ? window.location.hostname : "";
   const caffeineUrl = `https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(hostname)}`;
+
+  const NAV_ITEMS: {
+    id: AppTab;
+    label: string;
+    icon: React.ReactNode;
+    badge?: number;
+  }[] = [
+    {
+      id: "chat",
+      label: "Chat",
+      icon: <MessageSquare className="w-5 h-5" />,
+      badge: unreadCount,
+    },
+    { id: "random", label: "Random", icon: <Shuffle className="w-5 h-5" /> },
+    {
+      id: "discover",
+      label: "Discover",
+      icon: <Compass className="w-5 h-5" />,
+    },
+    {
+      id: "p2p",
+      label: "P2P",
+      icon: <ArrowLeftRight className="w-5 h-5" />,
+    },
+    { id: "profile", label: "Profile", icon: <User className="w-5 h-5" /> },
+  ];
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -614,20 +670,6 @@ export default function App() {
               </p>
             </div>
           </div>
-        ) : actorError && isLoggedIn && !me ? (
-          // Actor failed to load — show retry screen
-          <div className="flex flex-col items-center justify-center min-h-[70vh] py-12 px-4 text-center space-y-4">
-            <Shield className="w-12 h-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground text-sm">
-              Bağlantı kurulamadı. Lütfen tekrar deneyin.
-            </p>
-            <Button
-              onClick={() => refetchActor()}
-              className="bg-primary text-primary-foreground"
-            >
-              Yeniden Dene
-            </Button>
-          </div>
         ) : !me ? (
           <div className="flex flex-col items-center justify-center min-h-[70vh] py-12">
             <LandingPage
@@ -693,6 +735,18 @@ export default function App() {
                 />
               </motion.div>
             )}
+            {activeTab === "p2p" && (
+              <motion.div
+                key="p2p"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="h-full overflow-y-auto"
+              >
+                <P2PMarket myAnonId={me.anonymousId} />
+              </motion.div>
+            )}
             {activeTab === "profile" && (
               <motion.div
                 key="profile"
@@ -736,14 +790,14 @@ export default function App() {
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
           data-ocid="nav.panel"
         >
-          <div className="max-w-md mx-auto flex h-14">
+          <div className="max-w-lg mx-auto flex h-14">
             {NAV_ITEMS.map((item) => {
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => handleTabChange(item.id)}
                   data-ocid="nav.tab"
                   className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
                     isActive
@@ -752,11 +806,14 @@ export default function App() {
                   }`}
                 >
                   <span
-                    className={`transition-transform ${
+                    className={`relative transition-transform ${
                       isActive ? "scale-110" : "scale-100"
                     }`}
                   >
                     {item.icon}
+                    {item.badge !== undefined && (
+                      <UnreadBadge count={item.badge} />
+                    )}
                   </span>
                   <span className="text-[10px] font-medium tracking-wide">
                     {item.label}

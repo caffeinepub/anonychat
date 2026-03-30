@@ -14,7 +14,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { loadConfig } from "../config";
@@ -113,11 +112,41 @@ export const useInternetIdentity = (): InternetIdentityContext => {
   return context;
 };
 
+/**
+ * The InternetIdentityProvider component makes the saved identity available
+ * after page reloads. It also allows you to configure default options
+ * for AuthClient and login.
+ *
+ *
+ * @example
+ * ```tsx
+ * <InternetIdentityProvider>
+ *   <App />
+ * </InternetIdentityProvider>
+ * ```
+ */
 export function InternetIdentityProvider({
   children,
   createOptions,
 }: PropsWithChildren<{
+  /** The child components that the InternetIdentityProvider will wrap. This allows any child
+   * component to access the authentication context provided by the InternetIdentityProvider. */
   children: ReactNode;
+
+  /** Options for creating the {@link AuthClient}. See AuthClient documentation for list of options
+   *
+   * defaults to disabling the AuthClient idle handling (clearing identities
+   * from store and reloading the window on identity expiry). If that behaviour is preferred, set these settings:
+   *
+   * ```
+   * const options = {
+   *   idleOptions: {
+   *     disableDefaultIdleCallback: false,
+   *     disableIdle: false,
+   *   },
+   * }
+   * ```
+   */
   createOptions?: AuthClientCreateOptions;
 }>) {
   const [authClient, setAuthClient] = useState<AuthClient | undefined>(
@@ -126,7 +155,6 @@ export function InternetIdentityProvider({
   const [identity, setIdentity] = useState<Identity | undefined>(undefined);
   const [loginStatus, setStatus] = useState<Status>("initializing");
   const [loginError, setError] = useState<Error | undefined>(undefined);
-  const createOptionsRef = useRef(createOptions);
 
   const setErrorMessage = useCallback((message: string) => {
     setStatus("loginError");
@@ -203,31 +231,30 @@ export function InternetIdentityProvider({
       });
   }, [authClient, setErrorMessage]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: createOptionsRef.current is stable
-  // Initialize auth client only once on mount
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         setStatus("initializing");
-        const client = await createAuthClient(createOptionsRef.current);
-        if (cancelled) return;
-        setAuthClient(client);
-        const isAuthenticated = await client.isAuthenticated();
+        let existingClient = authClient;
+        if (!existingClient) {
+          existingClient = await createAuthClient(createOptions);
+          if (cancelled) return;
+          setAuthClient(existingClient);
+        }
+        const isAuthenticated = await existingClient.isAuthenticated();
         if (cancelled) return;
         if (isAuthenticated) {
-          const loadedIdentity = client.getIdentity();
+          const loadedIdentity = existingClient.getIdentity();
           setIdentity(loadedIdentity);
         }
       } catch (unknownError) {
-        if (!cancelled) {
-          setStatus("loginError");
-          setError(
-            unknownError instanceof Error
-              ? unknownError
-              : new Error("Initialization failed"),
-          );
-        }
+        setStatus("loginError");
+        setError(
+          unknownError instanceof Error
+            ? unknownError
+            : new Error("Initialization failed"),
+        );
       } finally {
         if (!cancelled) setStatus("idle");
       }
@@ -235,7 +262,7 @@ export function InternetIdentityProvider({
     return () => {
       cancelled = true;
     };
-  }, []); // Run only once on mount
+  }, [createOptions, authClient]);
 
   const value = useMemo<ProviderValue>(
     () => ({

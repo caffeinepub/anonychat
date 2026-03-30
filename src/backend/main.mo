@@ -91,6 +91,54 @@ actor {
     timestamp : Int;
   };
 
+  // =====================
+  // P2P TRADING TYPES
+  // =====================
+
+  public type ListingStatus = {
+    #Active;
+    #Locked;
+    #Sold;
+    #Cancelled;
+  };
+
+  public type TradeStatus = {
+    #Pending;
+    #PaymentSent;
+    #Confirmed;
+    #Rejected;
+    #Disputed;
+    #Cancelled;
+  };
+
+  public type P2PListing = {
+    id : Nat;
+    sellerPrincipal : Principal;
+    sellerAnonId : Text;
+    listedAnonId : Text;
+    price : Text;
+    iban : Text;
+    status : ListingStatus;
+    createdAt : Int;
+  };
+
+  public type P2PTrade = {
+    id : Nat;
+    listingId : Nat;
+    buyerPrincipal : Principal;
+    buyerAnonId : Text;
+    sellerPrincipal : Principal;
+    sellerAnonId : Text;
+    listedAnonId : Text;
+    price : Text;
+    iban : Text;
+    status : TradeStatus;
+    proofScreenshotHash : ?Text;
+    referenceNumber : ?Text;
+    createdAt : Int;
+    paymentSentAt : ?Int;
+  };
+
   var userIdCounter = 0;
   var messageIdCounter = 0;
   let users = Map.empty<Principal, User>();
@@ -115,7 +163,14 @@ actor {
   var randomVoiceMsgIdCounter = 0;
   let randomVoiceMessages = Map.empty<Nat, RandomVoiceMessage>();
 
+  // --- P2P Trading ---
+  let p2pListings = Map.empty<Nat, P2PListing>();
+  let p2pTrades = Map.empty<Nat, P2PTrade>();
+  var listingIdCounter = 0;
+  var tradeIdCounter = 0;
+
   let MATCH_TIMEOUT_NS : Int = 30_000_000_000;
+  let P2P_TRADE_TIMEOUT_NS : Int = 900_000_000_000; // 15 minutes
 
   func padTo4(n : Nat) : Text {
     let s = n.toText();
@@ -677,5 +732,331 @@ actor {
       }
     );
     sorted;
+  };
+
+  // =====================
+  // P2P TRADING SYSTEM
+  // =====================
+
+  // Internal helper: cancel expired Pending trades and unlock their listings
+  func cancelExpiredTradesInternal() : Nat {
+    let now = Time.now();
+    var cancelCount = 0;
+    for ((tid, trade) in p2pTrades.entries()) {
+      switch (trade.status) {
+        case (#Pending) {
+          if (now - trade.createdAt > P2P_TRADE_TIMEOUT_NS) {
+            p2pTrades.add(tid, { trade with status = #Cancelled });
+            // Unlock the listing back to Active
+            switch (p2pListings.get(trade.listingId)) {
+              case (?listing) {
+                switch (listing.status) {
+                  case (#Locked) {
+                    p2pListings.add(trade.listingId, { listing with status = #Active });
+                  };
+                  case (_) {};
+                };
+              };
+              case (null) {};
+            };
+            cancelCount += 1;
+          };
+        };
+        case (_) {};
+      };
+    };
+    cancelCount;
+  };
+
+  // Create a listing: seller lists their current anonymousId for sale
+  public shared ({ caller }) func createListing(price : Text, iban : Text) : async P2PListing {
+    let callerUser = switch (users.get(caller)) {
+      case (null) { Runtime.trap("Must register first") };
+      case (?u) { u };
+    };
+    // Check if seller already has an Active or Locked listing
+    for ((_, listing) in p2pListings.entries()) {
+      if (listing.sellerPrincipal == caller) {
+        switch (listing.status) {
+          case (#Active or #Locked) {
+            Runtime.trap("You already have an active listing. Cancel it first.");
+          };
+          case (_) {};
+        };
+      };
+    };
+    if (price == "") { Runtime.trap("Price cannot be empty") };
+    if (iban == "") { Runtime.trap("IBAN cannot be empty") };
+    let listingId = listingIdCounter;
+    listingIdCounter += 1;
+    let newListing : P2PListing = {
+      id = listingId;
+      sellerPrincipal = caller;
+      sellerAnonId = callerUser.anonymousId;
+      listedAnonId = callerUser.anonymousId;
+      price = price;
+      iban = iban;
+      status = #Active;
+      createdAt = Time.now();
+    };
+    p2pListings.add(listingId, newListing);
+    newListing;
+  };
+
+  // Get all active listings
+  public query func getActiveListings() : async [P2PListing] {
+    p2pListings.values().filter(
+      func(l : P2PListing) : Bool {
+        switch (l.status) {
+          case (#Active) { true };
+          case (_) { false };
+        };
+      }
+    ).toArray();
+  };
+
+  // Get caller's listings
+  public query ({ caller }) func getMyListings() : async [P2PListing] {
+    p2pListings.values().filter(
+      func(l : P2PListing) : Bool { l.sellerPrincipal == caller }
+    ).toArray();
+  };
+
+  // Cancel an active listing
+  public shared ({ caller }) func cancelListing(listingId : Nat) : async () {
+    let listing = switch (p2pListings.get(listingId)) {
+      case (null) { Runtime.trap("Listing not found") };
+      case (?l) { l };
+    };
+    if (listing.sellerPrincipal != caller) {
+      Runtime.trap("Only the seller can cancel this listing");
+    };
+    switch (listing.status) {
+      case (#Active) {
+        p2pListings.add(listingId, { listing with status = #Cancelled });
+      };
+      case (_) {
+        Runtime.trap("Can only cancel Active listings");
+      };
+    };
+  };
+
+  // Buyer initiates a trade
+  public shared ({ caller }) func buyListing(listingId : Nat) : async P2PTrade {
+    let callerUser = switch (users.get(caller)) {
+      case (null) { Runtime.trap("Must register first") };
+      case (?u) { u };
+    };
+    // Auto-cancel expired trades first
+    ignore cancelExpiredTradesInternal();
+
+    let listing = switch (p2pListings.get(listingId)) {
+      case (null) { Runtime.trap("Listing not found") };
+      case (?l) { l };
+    };
+    if (listing.sellerPrincipal == caller) {
+      Runtime.trap("Cannot buy your own listing");
+    };
+    switch (listing.status) {
+      case (#Active) {};
+      case (#Locked) { Runtime.trap("This ID is already being purchased by someone else") };
+      case (#Sold) { Runtime.trap("This ID has already been sold") };
+      case (#Cancelled) { Runtime.trap("This listing has been cancelled") };
+    };
+    // Lock the listing
+    p2pListings.add(listingId, { listing with status = #Locked });
+    // Create the trade
+    let tradeId = tradeIdCounter;
+    tradeIdCounter += 1;
+    let newTrade : P2PTrade = {
+      id = tradeId;
+      listingId = listingId;
+      buyerPrincipal = caller;
+      buyerAnonId = callerUser.anonymousId;
+      sellerPrincipal = listing.sellerPrincipal;
+      sellerAnonId = listing.sellerAnonId;
+      listedAnonId = listing.listedAnonId;
+      price = listing.price;
+      iban = listing.iban;
+      status = #Pending;
+      proofScreenshotHash = null;
+      referenceNumber = null;
+      createdAt = Time.now();
+      paymentSentAt = null;
+    };
+    p2pTrades.add(tradeId, newTrade);
+    newTrade;
+  };
+
+  // Buyer marks payment as sent
+  public shared ({ caller }) func markPaymentSent(tradeId : Nat, referenceNumber : Text, screenshotHash : Text) : async () {
+    let trade = switch (p2pTrades.get(tradeId)) {
+      case (null) { Runtime.trap("Trade not found") };
+      case (?t) { t };
+    };
+    if (trade.buyerPrincipal != caller) {
+      Runtime.trap("Only the buyer can mark payment as sent");
+    };
+    switch (trade.status) {
+      case (#Pending) {};
+      case (_) { Runtime.trap("Trade is not in Pending status") };
+    };
+    // Check 15-minute expiry
+    let now = Time.now();
+    if (now - trade.createdAt > P2P_TRADE_TIMEOUT_NS) {
+      p2pTrades.add(tradeId, { trade with status = #Cancelled });
+      // Unlock listing
+      switch (p2pListings.get(trade.listingId)) {
+        case (?listing) {
+          switch (listing.status) {
+            case (#Locked) { p2pListings.add(trade.listingId, { listing with status = #Active }) };
+            case (_) {};
+          };
+        };
+        case (null) {};
+      };
+      Runtime.trap("Trade expired. Please start a new purchase.");
+    };
+    p2pTrades.add(tradeId, {
+      trade with
+      status = #PaymentSent;
+      referenceNumber = ?referenceNumber;
+      proofScreenshotHash = ?screenshotHash;
+      paymentSentAt = ?now;
+    });
+  };
+
+  // Seller confirms the trade — transfers ID to buyer, seller gets new ID
+  public shared ({ caller }) func confirmTrade(tradeId : Nat) : async () {
+    let trade = switch (p2pTrades.get(tradeId)) {
+      case (null) { Runtime.trap("Trade not found") };
+      case (?t) { t };
+    };
+    if (trade.sellerPrincipal != caller) {
+      Runtime.trap("Only the seller can confirm this trade");
+    };
+    switch (trade.status) {
+      case (#PaymentSent) {};
+      case (_) { Runtime.trap("Trade is not in PaymentSent status") };
+    };
+    // Transfer ID: buyer gets listedAnonId
+    let buyerUser = switch (users.get(trade.buyerPrincipal)) {
+      case (null) { Runtime.trap("Buyer not found") };
+      case (?u) { u };
+    };
+    let sellerUser = switch (users.get(trade.sellerPrincipal)) {
+      case (null) { Runtime.trap("Seller not found") };
+      case (?u) { u };
+    };
+    // Remove buyer's old anonId from maps
+    anonIdToPrincipal.remove(buyerUser.anonymousId);
+    usedIds.remove(buyerUser.anonymousId);
+    // Assign listed ID to buyer
+    let newBuyerUser = { buyerUser with anonymousId = trade.listedAnonId };
+    users.add(trade.buyerPrincipal, newBuyerUser);
+    anonIdToPrincipal.add(trade.listedAnonId, trade.buyerPrincipal);
+    switch (userProfiles.get(trade.buyerPrincipal)) {
+      case (?p) { userProfiles.add(trade.buyerPrincipal, { p with anonymousId = trade.listedAnonId }) };
+      case (null) {};
+    };
+    // Seller's old ID is now the buyer's — generate new ID for seller
+    // (The seller's anonId is already removed via the transfer since listedAnonId == sellerAnonId)
+    // We only need to generate a new ID for the seller
+    // Note: generateUniqueId is async, we handle it below
+    // Mark trade and listing as completed synchronously
+    p2pTrades.add(tradeId, { trade with status = #Confirmed });
+    switch (p2pListings.get(trade.listingId)) {
+      case (?listing) { p2pListings.add(trade.listingId, { listing with status = #Sold }) };
+      case (null) {};
+    };
+    // Generate and assign new ID for seller asynchronously
+    let newSellerAnonId = await generateUniqueId();
+    usedIds.add(newSellerAnonId, ());
+    let newSellerUser = { sellerUser with anonymousId = newSellerAnonId };
+    users.add(trade.sellerPrincipal, newSellerUser);
+    anonIdToPrincipal.add(newSellerAnonId, trade.sellerPrincipal);
+    switch (userProfiles.get(trade.sellerPrincipal)) {
+      case (?p) { userProfiles.add(trade.sellerPrincipal, { p with anonymousId = newSellerAnonId }) };
+      case (null) {};
+    };
+  };
+
+  // Seller rejects the trade (dispute)
+  public shared ({ caller }) func rejectTrade(tradeId : Nat) : async () {
+    let trade = switch (p2pTrades.get(tradeId)) {
+      case (null) { Runtime.trap("Trade not found") };
+      case (?t) { t };
+    };
+    if (trade.sellerPrincipal != caller) {
+      Runtime.trap("Only the seller can reject this trade");
+    };
+    switch (trade.status) {
+      case (#PaymentSent) {};
+      case (#Pending) {};
+      case (_) { Runtime.trap("Trade cannot be rejected in its current status") };
+    };
+    p2pTrades.add(tradeId, { trade with status = #Disputed });
+    // Unlock listing back to Active
+    switch (p2pListings.get(trade.listingId)) {
+      case (?listing) {
+        switch (listing.status) {
+          case (#Locked) { p2pListings.add(trade.listingId, { listing with status = #Active }) };
+          case (_) {};
+        };
+      };
+      case (null) {};
+    };
+  };
+
+  // Get all trades where caller is buyer or seller
+  public query ({ caller }) func getMyTrades() : async [P2PTrade] {
+    p2pTrades.values().filter(
+      func(t : P2PTrade) : Bool {
+        t.buyerPrincipal == caller or t.sellerPrincipal == caller
+      }
+    ).toArray();
+  };
+
+  // Get a specific trade
+  public query ({ caller }) func getTrade(tradeId : Nat) : async ?P2PTrade {
+    switch (p2pTrades.get(tradeId)) {
+      case (null) { null };
+      case (?trade) {
+        if (trade.buyerPrincipal != caller and trade.sellerPrincipal != caller) {
+          Runtime.trap("Unauthorized: Not your trade");
+        };
+        ?trade;
+      };
+    };
+  };
+
+  // Public: cancel expired trades (callable by anyone)
+  public shared func cancelExpiredTrades() : async Nat {
+    cancelExpiredTradesInternal();
+  };
+
+  // Cancel a Pending trade manually (buyer only, or auto-expire)
+  public shared ({ caller }) func cancelTrade(tradeId : Nat) : async () {
+    let trade = switch (p2pTrades.get(tradeId)) {
+      case (null) { Runtime.trap("Trade not found") };
+      case (?t) { t };
+    };
+    if (trade.buyerPrincipal != caller and trade.sellerPrincipal != caller) {
+      Runtime.trap("Unauthorized: Not your trade");
+    };
+    switch (trade.status) {
+      case (#Pending) {};
+      case (_) { Runtime.trap("Can only cancel Pending trades") };
+    };
+    p2pTrades.add(tradeId, { trade with status = #Cancelled });
+    switch (p2pListings.get(trade.listingId)) {
+      case (?listing) {
+        switch (listing.status) {
+          case (#Locked) { p2pListings.add(trade.listingId, { listing with status = #Active }) };
+          case (_) {};
+        };
+      };
+      case (null) {};
+    };
   };
 };
