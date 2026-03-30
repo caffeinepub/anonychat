@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/assets/fonts/JetBrainsMono.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/assets/fonts/GeistMono.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("/assets/fonts/Satoshi.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+    --background: 0.09 0 0;
+    --foreground: 0.97 0 0;
+    --card: 0.13 0 0;
+    --card-foreground: 0.97 0 0;
+    --popover: 0.13 0 0;
+    --popover-foreground: 0.97 0 0;
+    --primary: 0.75 0.2 200;
+    --primary-foreground: 0.09 0 0;
+    --secondary: 0.18 0 0;
+    --secondary-foreground: 0.97 0 0;
+    --muted: 0.18 0 0;
+    --muted-foreground: 0.55 0 0;
+    --accent: 0.75 0.2 200;
+    --accent-foreground: 0.09 0 0;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 1 0 0 / 8%;
+    --input: 1 0 0 / 10%;
+    --ring: 0.75 0.2 200;
+    --chart-1: 0.75 0.2 200;
+    --chart-2: 0.696 0.17 162.48;
+    --chart-3: 0.769 0.188 70.08;
+    --chart-4: 0.627 0.265 303.9;
+    --chart-5: 0.645 0.246 16.439;
+    --sidebar: 0.11 0 0;
+    --sidebar-foreground: 0.97 0 0;
+    --sidebar-primary: 0.75 0.2 200;
+    --sidebar-primary-foreground: 0.09 0 0;
+    --sidebar-accent: 0.18 0 0;
+    --sidebar-accent-foreground: 0.97 0 0;
+    --sidebar-border: 1 0 0 / 8%;
+    --sidebar-ring: 0.75 0.2 200;
+    --cyan-glow: oklch(0.75 0.2 200);
+    --online-green: oklch(0.72 0.2 145);
+    --offline-gray: oklch(0.45 0 0);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Satoshi", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  .font-mono-display {
+    font-family: "JetBrains Mono", "Geist Mono", monospace;
+  }
+
+  .glass-card {
+    background: oklch(0.14 0 0 / 80%);
+    backdrop-filter: blur(20px);
+    border: 1px solid oklch(1 0 0 / 8%);
+    box-shadow: 0 0 0 1px oklch(0.75 0.2 200 / 12%), 0 20px 60px
+      oklch(0 0 0 / 50%), inset 0 1px 0 oklch(1 0 0 / 6%);
+  }
+
+  .glow-text {
+    text-shadow: 0 0 30px oklch(0.75 0.2 200 / 60%);
+  }
+
+  .glow-border {
+    box-shadow: 0 0 20px oklch(0.75 0.2 200 / 20%);
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      oklch(0.75 0.2 200 / 8%),
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes typewriter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 6px 2px oklch(0.72 0.2 145 / 60%);
+  }
+  50% {
+    box-shadow: 0 0 12px 4px oklch(0.72 0.2 145 / 90%);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.animate-typewriter {
+  animation: typewriter 0.4s ease-out forwards;
+}
+
+.online-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
