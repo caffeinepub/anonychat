@@ -145,6 +145,38 @@ export interface P2PTrade {
     paymentSentAt?: bigint;
 }
 
+// AnonCash Referral Types
+export type RewardLevel =
+    | { Level1: null }
+    | { Level2: null }
+    | { Level3: null };
+
+export type RewardStatus =
+    | { Pending: null }
+    | { Claimable: null }
+    | { Claimed: null };
+
+export interface PendingReward {
+    id: bigint;
+    level: RewardLevel;
+    amount: bigint;
+    referredUserAnonId: string;
+    createdAt: bigint;
+    claimableAt: bigint;
+    status: RewardStatus;
+}
+
+export interface ReferralStats {
+    referralCode: [] | [string];
+    totalReferrals: bigint;
+    qualifiedReferrals: bigint;
+    anonCashBalance: bigint;
+    pendingAmount: bigint;
+    level1Count: bigint;
+    level2Unlocked: boolean;
+    level3Count: bigint;
+}
+
 export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     blockUser(anonId: string): Promise<void>;
@@ -189,4 +221,13 @@ export interface backendInterface {
     getTrade(tradeId: bigint): Promise<P2PTrade | null>;
     cancelExpiredTrades(): Promise<bigint>;
     cancelTrade(tradeId: bigint): Promise<void>;
+    // AnonCash Referral
+    generateReferralCode(): Promise<string>;
+    getReferralCode(): Promise<string | null>;
+    useReferralCode(code: string): Promise<void>;
+    getAnonCashBalance(): Promise<bigint>;
+    getPendingRewards(): Promise<Array<PendingReward>>;
+    claimReward(rewardId: bigint): Promise<bigint>;
+    getReferralStats(): Promise<ReferralStats>;
+    buyPremium(): Promise<void>;
 }

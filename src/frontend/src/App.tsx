@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeftRight,
   Check,
+  Coins,
   Compass,
   Copy,
   Crown,
@@ -30,6 +31,7 @@ import { toast } from "sonner";
 import type { User as UserType } from "./backend";
 import { ChatView } from "./components/ChatView";
 import { DiscoverTab } from "./components/DiscoverTab";
+import { EarnTab } from "./components/EarnTab";
 import { P2PMarket } from "./components/P2PMarket";
 import { PremiumModal } from "./components/PremiumModal";
 import { QRCodeModal } from "./components/QRCodeModal";
@@ -468,7 +470,7 @@ function LandingPage({
   );
 }
 
-type AppTab = "chat" | "random" | "discover" | "p2p" | "profile";
+type AppTab = "chat" | "random" | "discover" | "p2p" | "earn" | "profile";
 
 function UnreadBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -591,6 +593,11 @@ export default function App() {
       id: "p2p",
       label: "P2P",
       icon: <ArrowLeftRight className="w-5 h-5" />,
+    },
+    {
+      id: "earn",
+      label: "Kazan",
+      icon: <Coins className="w-5 h-5" />,
     },
     { id: "profile", label: "Profile", icon: <User className="w-5 h-5" /> },
   ];
@@ -745,6 +752,18 @@ export default function App() {
                 className="h-full overflow-y-auto"
               >
                 <P2PMarket myAnonId={me.anonymousId} />
+              </motion.div>
+            )}
+            {activeTab === "earn" && (
+              <motion.div
+                key="earn"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="h-full overflow-y-auto"
+              >
+                <EarnTab myAnonId={me.anonymousId} />
               </motion.div>
             )}
             {activeTab === "profile" && (

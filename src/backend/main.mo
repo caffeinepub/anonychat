@@ -139,6 +139,35 @@ actor {
     paymentSentAt : ?Int;
   };
 
+  // =====================
+  // ANONCASH REFERRAL TYPES
+  // =====================
+
+  public type RewardLevel = { #Level1; #Level2; #Level3 };
+
+  public type RewardStatus = { #Pending; #Claimable; #Claimed };
+
+  public type PendingReward = {
+    id : Nat;
+    level : RewardLevel;
+    amount : Nat;
+    referredUserAnonId : Text;
+    createdAt : Int;
+    claimableAt : Int;
+    status : RewardStatus;
+  };
+
+  public type ReferralStats = {
+    referralCode : ?Text;
+    totalReferrals : Nat;
+    qualifiedReferrals : Nat;
+    anonCashBalance : Nat;
+    pendingAmount : Nat;
+    level1Count : Nat;
+    level2Unlocked : Bool;
+    level3Count : Nat;
+  };
+
   var userIdCounter = 0;
   var messageIdCounter = 0;
   let users = Map.empty<Principal, User>();
@@ -169,8 +198,26 @@ actor {
   var listingIdCounter = 0;
   var tradeIdCounter = 0;
 
+  // --- AnonCash Referral System ---
+  let referralCodes = Map.empty<Text, Principal>();
+  let principalToReferralCode = Map.empty<Principal, Text>();
+  let referredBy = Map.empty<Principal, Principal>();
+  let userReferrals = Map.empty<Principal, [Principal]>();
+  let anonCashBalance = Map.empty<Principal, Nat>();
+  let pendingRewardMap = Map.empty<Nat, PendingReward>();
+  let userPendingRewardIds = Map.empty<Principal, [Nat]>();
+  var rewardIdCounter = 0;
+  let userMsgCount = Map.empty<Principal, Nat>();
+  let level1Issued = Map.empty<Principal, [Principal]>();
+  let level2Issued = Map.empty<Principal, Bool>();
+  let level3Issued = Map.empty<Principal, [Principal]>();
+  let dailyEarnings = Map.empty<Principal, (Int, Nat)>();
+
   let MATCH_TIMEOUT_NS : Int = 30_000_000_000;
   let P2P_TRADE_TIMEOUT_NS : Int = 900_000_000_000; // 15 minutes
+  let REWARD_DELAY_NS : Int = 86_400_000_000_000;   // 24 hours
+  let DAILY_EARN_CAP : Nat = 100;
+  let ACTIVE_MSG_THRESHOLD : Nat = 5;
 
   func padTo4(n : Nat) : Text {
     let s = n.toText();
@@ -200,6 +247,89 @@ actor {
       id := await generateUnsafeId();
     };
     id;
+  };
+
+  // --- Referral helpers ---
+
+  func appendPrincipalArr(arr : [Principal], p : Principal) : [Principal] {
+    Array.tabulate(arr.size() + 1, func(i : Nat) : Principal {
+      if (i < arr.size()) { arr[i] } else { p }
+    });
+  };
+
+  func appendNatArr(arr : [Nat], n : Nat) : [Nat] {
+    Array.tabulate(arr.size() + 1, func(i : Nat) : Nat {
+      if (i < arr.size()) { arr[i] } else { n }
+    });
+  };
+
+  func addPendingRewardToUser(referrer : Principal, reward : PendingReward) : () {
+    pendingRewardMap.add(reward.id, reward);
+    let existing = switch (userPendingRewardIds.get(referrer)) {
+      case (null) { [] };
+      case (?arr) { arr };
+    };
+    userPendingRewardIds.add(referrer, appendNatArr(existing, reward.id));
+  };
+
+  func checkAndIssueReferralReward(activeUser : Principal) : () {
+    switch (users.get(activeUser)) {
+      case (null) { };
+      case (?activeUserData) {
+        switch (referredBy.get(activeUser)) {
+          case (null) { };
+          case (?referrer) {
+            let l1List = switch (level1Issued.get(referrer)) {
+              case (null) { [] };
+              case (?arr) { arr };
+            };
+            let alreadyL1 = switch (l1List.find(func(p : Principal) : Bool { p == activeUser })) {
+              case (?_) { true };
+              case (null) { false };
+            };
+            if (not alreadyL1) {
+              let now = Time.now();
+              let rewardId = rewardIdCounter;
+              rewardIdCounter += 1;
+              let reward : PendingReward = {
+                id = rewardId;
+                level = #Level1;
+                amount = 1;
+                referredUserAnonId = activeUserData.anonymousId;
+                createdAt = now;
+                claimableAt = now + REWARD_DELAY_NS;
+                status = #Pending;
+              };
+              addPendingRewardToUser(referrer, reward);
+              level1Issued.add(referrer, appendPrincipalArr(l1List, activeUser));
+              let newL1Count = switch (level1Issued.get(referrer)) {
+                case (null) { 0 };
+                case (?arr) { arr.size() };
+              };
+              let l2Done = switch (level2Issued.get(referrer)) {
+                case (null) { false };
+                case (?b) { b };
+              };
+              if (newL1Count >= 5 and not l2Done) {
+                let l2Id = rewardIdCounter;
+                rewardIdCounter += 1;
+                let l2Reward : PendingReward = {
+                  id = l2Id;
+                  level = #Level2;
+                  amount = 10;
+                  referredUserAnonId = activeUserData.anonymousId;
+                  createdAt = now;
+                  claimableAt = now + REWARD_DELAY_NS;
+                  status = #Pending;
+                };
+                addPendingRewardToUser(referrer, l2Reward);
+                level2Issued.add(referrer, true);
+              };
+            };
+          };
+        };
+      };
+    };
   };
 
   public shared ({ caller }) func register() : async User {
@@ -370,6 +500,15 @@ actor {
     messages.add(messageIdCounter, msg);
     let id = messageIdCounter;
     messageIdCounter += 1;
+    // Track message count for referral activity detection
+    let msgCount = switch (userMsgCount.get(caller)) {
+      case (null) { 1 };
+      case (?c) { c + 1 };
+    };
+    userMsgCount.add(caller, msgCount);
+    if (msgCount == ACTIVE_MSG_THRESHOLD) {
+      checkAndIssueReferralReward(caller);
+    };
     id;
   };
 
@@ -738,7 +877,6 @@ actor {
   // P2P TRADING SYSTEM
   // =====================
 
-  // Internal helper: cancel expired Pending trades and unlock their listings
   func cancelExpiredTradesInternal() : Nat {
     let now = Time.now();
     var cancelCount = 0;
@@ -747,7 +885,6 @@ actor {
         case (#Pending) {
           if (now - trade.createdAt > P2P_TRADE_TIMEOUT_NS) {
             p2pTrades.add(tid, { trade with status = #Cancelled });
-            // Unlock the listing back to Active
             switch (p2pListings.get(trade.listingId)) {
               case (?listing) {
                 switch (listing.status) {
@@ -768,13 +905,11 @@ actor {
     cancelCount;
   };
 
-  // Create a listing: seller lists their current anonymousId for sale
   public shared ({ caller }) func createListing(price : Text, iban : Text) : async P2PListing {
     let callerUser = switch (users.get(caller)) {
       case (null) { Runtime.trap("Must register first") };
       case (?u) { u };
     };
-    // Check if seller already has an Active or Locked listing
     for ((_, listing) in p2pListings.entries()) {
       if (listing.sellerPrincipal == caller) {
         switch (listing.status) {
@@ -803,7 +938,6 @@ actor {
     newListing;
   };
 
-  // Get all active listings
   public query func getActiveListings() : async [P2PListing] {
     p2pListings.values().filter(
       func(l : P2PListing) : Bool {
@@ -815,14 +949,12 @@ actor {
     ).toArray();
   };
 
-  // Get caller's listings
   public query ({ caller }) func getMyListings() : async [P2PListing] {
     p2pListings.values().filter(
       func(l : P2PListing) : Bool { l.sellerPrincipal == caller }
     ).toArray();
   };
 
-  // Cancel an active listing
   public shared ({ caller }) func cancelListing(listingId : Nat) : async () {
     let listing = switch (p2pListings.get(listingId)) {
       case (null) { Runtime.trap("Listing not found") };
@@ -841,15 +973,12 @@ actor {
     };
   };
 
-  // Buyer initiates a trade
   public shared ({ caller }) func buyListing(listingId : Nat) : async P2PTrade {
     let callerUser = switch (users.get(caller)) {
       case (null) { Runtime.trap("Must register first") };
       case (?u) { u };
     };
-    // Auto-cancel expired trades first
     ignore cancelExpiredTradesInternal();
-
     let listing = switch (p2pListings.get(listingId)) {
       case (null) { Runtime.trap("Listing not found") };
       case (?l) { l };
@@ -863,9 +992,7 @@ actor {
       case (#Sold) { Runtime.trap("This ID has already been sold") };
       case (#Cancelled) { Runtime.trap("This listing has been cancelled") };
     };
-    // Lock the listing
     p2pListings.add(listingId, { listing with status = #Locked });
-    // Create the trade
     let tradeId = tradeIdCounter;
     tradeIdCounter += 1;
     let newTrade : P2PTrade = {
@@ -888,7 +1015,6 @@ actor {
     newTrade;
   };
 
-  // Buyer marks payment as sent
   public shared ({ caller }) func markPaymentSent(tradeId : Nat, referenceNumber : Text, screenshotHash : Text) : async () {
     let trade = switch (p2pTrades.get(tradeId)) {
       case (null) { Runtime.trap("Trade not found") };
@@ -901,11 +1027,9 @@ actor {
       case (#Pending) {};
       case (_) { Runtime.trap("Trade is not in Pending status") };
     };
-    // Check 15-minute expiry
     let now = Time.now();
     if (now - trade.createdAt > P2P_TRADE_TIMEOUT_NS) {
       p2pTrades.add(tradeId, { trade with status = #Cancelled });
-      // Unlock listing
       switch (p2pListings.get(trade.listingId)) {
         case (?listing) {
           switch (listing.status) {
@@ -926,7 +1050,6 @@ actor {
     });
   };
 
-  // Seller confirms the trade — transfers ID to buyer, seller gets new ID
   public shared ({ caller }) func confirmTrade(tradeId : Nat) : async () {
     let trade = switch (p2pTrades.get(tradeId)) {
       case (null) { Runtime.trap("Trade not found") };
@@ -939,7 +1062,6 @@ actor {
       case (#PaymentSent) {};
       case (_) { Runtime.trap("Trade is not in PaymentSent status") };
     };
-    // Transfer ID: buyer gets listedAnonId
     let buyerUser = switch (users.get(trade.buyerPrincipal)) {
       case (null) { Runtime.trap("Buyer not found") };
       case (?u) { u };
@@ -948,10 +1070,8 @@ actor {
       case (null) { Runtime.trap("Seller not found") };
       case (?u) { u };
     };
-    // Remove buyer's old anonId from maps
     anonIdToPrincipal.remove(buyerUser.anonymousId);
     usedIds.remove(buyerUser.anonymousId);
-    // Assign listed ID to buyer
     let newBuyerUser = { buyerUser with anonymousId = trade.listedAnonId };
     users.add(trade.buyerPrincipal, newBuyerUser);
     anonIdToPrincipal.add(trade.listedAnonId, trade.buyerPrincipal);
@@ -959,17 +1079,11 @@ actor {
       case (?p) { userProfiles.add(trade.buyerPrincipal, { p with anonymousId = trade.listedAnonId }) };
       case (null) {};
     };
-    // Seller's old ID is now the buyer's — generate new ID for seller
-    // (The seller's anonId is already removed via the transfer since listedAnonId == sellerAnonId)
-    // We only need to generate a new ID for the seller
-    // Note: generateUniqueId is async, we handle it below
-    // Mark trade and listing as completed synchronously
     p2pTrades.add(tradeId, { trade with status = #Confirmed });
     switch (p2pListings.get(trade.listingId)) {
       case (?listing) { p2pListings.add(trade.listingId, { listing with status = #Sold }) };
       case (null) {};
     };
-    // Generate and assign new ID for seller asynchronously
     let newSellerAnonId = await generateUniqueId();
     usedIds.add(newSellerAnonId, ());
     let newSellerUser = { sellerUser with anonymousId = newSellerAnonId };
@@ -981,7 +1095,6 @@ actor {
     };
   };
 
-  // Seller rejects the trade (dispute)
   public shared ({ caller }) func rejectTrade(tradeId : Nat) : async () {
     let trade = switch (p2pTrades.get(tradeId)) {
       case (null) { Runtime.trap("Trade not found") };
@@ -996,7 +1109,6 @@ actor {
       case (_) { Runtime.trap("Trade cannot be rejected in its current status") };
     };
     p2pTrades.add(tradeId, { trade with status = #Disputed });
-    // Unlock listing back to Active
     switch (p2pListings.get(trade.listingId)) {
       case (?listing) {
         switch (listing.status) {
@@ -1008,7 +1120,6 @@ actor {
     };
   };
 
-  // Get all trades where caller is buyer or seller
   public query ({ caller }) func getMyTrades() : async [P2PTrade] {
     p2pTrades.values().filter(
       func(t : P2PTrade) : Bool {
@@ -1017,7 +1128,6 @@ actor {
     ).toArray();
   };
 
-  // Get a specific trade
   public query ({ caller }) func getTrade(tradeId : Nat) : async ?P2PTrade {
     switch (p2pTrades.get(tradeId)) {
       case (null) { null };
@@ -1030,12 +1140,10 @@ actor {
     };
   };
 
-  // Public: cancel expired trades (callable by anyone)
   public shared func cancelExpiredTrades() : async Nat {
     cancelExpiredTradesInternal();
   };
 
-  // Cancel a Pending trade manually (buyer only, or auto-expire)
   public shared ({ caller }) func cancelTrade(tradeId : Nat) : async () {
     let trade = switch (p2pTrades.get(tradeId)) {
       case (null) { Runtime.trap("Trade not found") };
@@ -1057,6 +1165,221 @@ actor {
         };
       };
       case (null) {};
+    };
+  };
+
+  // =====================
+  // ANONCASH REFERRAL SYSTEM
+  // =====================
+
+  // Get or create the referral code for the caller (= their anonymousId)
+  public shared ({ caller }) func generateReferralCode() : async Text {
+    switch (principalToReferralCode.get(caller)) {
+      case (?code) { return code };
+      case (null) {};
+    };
+    let user = switch (users.get(caller)) {
+      case (null) { Runtime.trap("Must register first") };
+      case (?u) { u };
+    };
+    let code = user.anonymousId;
+    referralCodes.add(code, caller);
+    principalToReferralCode.add(caller, code);
+    code;
+  };
+
+  public query ({ caller }) func getReferralCode() : async ?Text {
+    principalToReferralCode.get(caller);
+  };
+
+  // New user enters someone else's referral code
+  public shared ({ caller }) func useReferralCode(code : Text) : async () {
+    if (referredBy.containsKey(caller)) {
+      Runtime.trap("You already used a referral code");
+    };
+    switch (users.get(caller)) {
+      case (null) { Runtime.trap("Must register first") };
+      case (?_) {};
+    };
+    let referrer = switch (referralCodes.get(code)) {
+      case (null) { Runtime.trap("Invalid referral code") };
+      case (?p) { p };
+    };
+    if (referrer == caller) {
+      Runtime.trap("Cannot use your own referral code");
+    };
+    referredBy.add(caller, referrer);
+    let current = switch (userReferrals.get(referrer)) {
+      case (null) { [] };
+      case (?arr) { arr };
+    };
+    userReferrals.add(referrer, appendPrincipalArr(current, caller));
+  };
+
+  // Mark caller as premium (simplified — for L3 reward trigger)
+  public shared ({ caller }) func buyPremium() : async () {
+    let callerUser = switch (users.get(caller)) {
+      case (null) { Runtime.trap("Must register first") };
+      case (?u) { u };
+    };
+    switch (referredBy.get(caller)) {
+      case (null) { };
+      case (?referrer) {
+        let l3List = switch (level3Issued.get(referrer)) {
+          case (null) { [] };
+          case (?arr) { arr };
+        };
+        let alreadyL3 = switch (l3List.find(func(p : Principal) : Bool { p == caller })) {
+          case (?_) { true };
+          case (null) { false };
+        };
+        if (not alreadyL3) {
+          let now = Time.now();
+          let rewardId = rewardIdCounter;
+          rewardIdCounter += 1;
+          let reward : PendingReward = {
+            id = rewardId;
+            level = #Level3;
+            amount = 50;
+            referredUserAnonId = callerUser.anonymousId;
+            createdAt = now;
+            claimableAt = now + REWARD_DELAY_NS;
+            status = #Pending;
+          };
+          addPendingRewardToUser(referrer, reward);
+          level3Issued.add(referrer, appendPrincipalArr(l3List, caller));
+        };
+      };
+    };
+  };
+
+  public query ({ caller }) func getAnonCashBalance() : async Nat {
+    switch (anonCashBalance.get(caller)) {
+      case (null) { 0 };
+      case (?b) { b };
+    };
+  };
+
+  public query ({ caller }) func getPendingRewards() : async [PendingReward] {
+    let ids = switch (userPendingRewardIds.get(caller)) {
+      case (null) { return [] };
+      case (?arr) { arr };
+    };
+    let now = Time.now();
+    let active = ids.filter(func(id : Nat) : Bool {
+      switch (pendingRewardMap.get(id)) {
+        case (null) { false };
+        case (?r) {
+          switch (r.status) {
+            case (#Claimed) { false };
+            case (_) { true };
+          };
+        };
+      };
+    });
+    Array.tabulate(active.size(), func(i : Nat) : PendingReward {
+      let id = active[i];
+      let reward = switch (pendingRewardMap.get(id)) {
+        case (null) { Runtime.trap("Inconsistent state") };
+        case (?r) { r };
+      };
+      let newStatus : RewardStatus = if (now >= reward.claimableAt) { #Claimable } else { #Pending };
+      { reward with status = newStatus };
+    });
+  };
+
+  public shared ({ caller }) func claimReward(rewardId : Nat) : async Nat {
+    let reward = switch (pendingRewardMap.get(rewardId)) {
+      case (null) { Runtime.trap("Reward not found") };
+      case (?r) { r };
+    };
+    let ids = switch (userPendingRewardIds.get(caller)) {
+      case (null) { Runtime.trap("Not your reward") };
+      case (?arr) { arr };
+    };
+    let owns = switch (ids.find(func(id : Nat) : Bool { id == rewardId })) {
+      case (?_) { true };
+      case (null) { false };
+    };
+    if (not owns) { Runtime.trap("Not your reward") };
+    switch (reward.status) {
+      case (#Claimed) { Runtime.trap("Already claimed") };
+      case (_) {};
+    };
+    let now = Time.now();
+    if (now < reward.claimableAt) {
+      Runtime.trap("Reward not yet claimable. Please wait 24 hours.");
+    };
+    let (windowStart, windowEarned) = switch (dailyEarnings.get(caller)) {
+      case (null) { (now, 0) };
+      case (?w) { w };
+    };
+    let (currentStart, currentEarned) = if (now - windowStart > REWARD_DELAY_NS) {
+      (now, 0)
+    } else {
+      (windowStart, windowEarned)
+    };
+    if (currentEarned + reward.amount > DAILY_EARN_CAP) {
+      Runtime.trap("Daily earning cap reached. Try again tomorrow.");
+    };
+    pendingRewardMap.add(rewardId, { reward with status = #Claimed });
+    dailyEarnings.add(caller, (currentStart, currentEarned + reward.amount));
+    let bal = switch (anonCashBalance.get(caller)) {
+      case (null) { 0 };
+      case (?b) { b };
+    };
+    let newBal = bal + reward.amount;
+    anonCashBalance.add(caller, newBal);
+    newBal;
+  };
+
+  public query ({ caller }) func getReferralStats() : async ReferralStats {
+    let code = principalToReferralCode.get(caller);
+    let totalRefs = switch (userReferrals.get(caller)) {
+      case (null) { 0 };
+      case (?arr) { arr.size() };
+    };
+    let qualifiedCount = switch (level1Issued.get(caller)) {
+      case (null) { 0 };
+      case (?arr) { arr.size() };
+    };
+    let bal = switch (anonCashBalance.get(caller)) {
+      case (null) { 0 };
+      case (?b) { b };
+    };
+    var pending : Nat = 0;
+    let ids = switch (userPendingRewardIds.get(caller)) {
+      case (null) { [] };
+      case (?arr) { arr };
+    };
+    for (id in ids.vals()) {
+      switch (pendingRewardMap.get(id)) {
+        case (?r) {
+          switch (r.status) {
+            case (#Claimed) {};
+            case (_) { pending += r.amount };
+          };
+        };
+        case (null) {};
+      };
+    };
+    let l2Done = switch (level2Issued.get(caller)) {
+      case (null) { false };
+      case (?b) { b };
+    };
+    let l3Count = switch (level3Issued.get(caller)) {
+      case (null) { 0 };
+      case (?arr) { arr.size() };
+    };
+    {
+      referralCode = code;
+      totalReferrals = totalRefs;
+      qualifiedReferrals = qualifiedCount;
+      anonCashBalance = bal;
+      pendingAmount = pending;
+      level1Count = qualifiedCount;
+      level2Unlocked = l2Done;
+      level3Count = l3Count;
     };
   };
 };

@@ -1,55 +1,38 @@
-# Anonychat — P2P ID Trading System
+# Anonychat
 
 ## Current State
-Fully working anonymous chat app on ICP/Motoko with:
-- Anonymous IDs (+777 XXXX XXXX), rarity levels, user registration
-- Real-time messaging, voice messages, random chat matching
-- Discover tab (online users, nearby users), QR code friend adding
-- Notification badges, premium ID search (UI-only)
-- Blob storage (MixinStorage) already included in backend
-- 5 tabs: Chat, Random, Discover, Profile — bottom navigation
+Full-stack anonymous chat app with: anonymous IDs (+777 XXXX XXXX), real-time messaging, random chat matching, voice messages, P2P ID trading, premium ID selection, QR code friend-adding, and Discover tab. Backend is Motoko on ICP. Frontend is React/Tailwind. Navigation: Chat, Random, Discover, P2P, Profile (5 tabs).
 
 ## Requested Changes (Diff)
 
 ### Add
-- **P2P Market tab** — 6th tab in bottom navigation (or integrated as a tab)
-- **P2P Listing data type** — id, sellerPrincipal, sellerAnonId, listedAnonId (ID being sold), price, iban, status (Active/Locked/Sold/Cancelled), createdAt
-- **P2P Trade data type** — id, listingId, buyerPrincipal, buyerAnonId, sellerPrincipal, sellerAnonId, listedAnonId, price, status (Pending/PaymentSent/Confirmed/Rejected/Disputed/Cancelled), proofScreenshotHash, referenceNumber, createdAt, paymentSentAt
-- **Backend endpoints**:
-  - `createListing(price, iban)` — seller lists their own anonymousId for sale
-  - `getActiveListings()` — query, all Active status listings
-  - `getMyListings()` — query, caller's listings
-  - `buyListing(listingId)` — locks listing, creates trade, returns trade with IBAN
-  - `markPaymentSent(tradeId, referenceNumber, screenshotHash)` — buyer submits proof
-  - `confirmTrade(tradeId)` — seller confirms → transfers ID to buyer, seller gets new random ID
-  - `rejectTrade(tradeId)` — seller rejects → dispute status, listing unlocked
-  - `cancelTrade(tradeId)` — cancel if 15 min expired or manual cancel (Pending only)
-  - `getMyTrades()` — all trades where caller is buyer or seller
-  - `cancelListing(listingId)` — seller cancels Active listing
-- **Security**: listing locked during trade (prevents multiple buyers), auto-cancel after 15 minutes
-- **ID Transfer**: on confirmTrade, buyer's anonymousId → listedAnonId, seller gets new random ID generated
-- **Screenshot upload**: use existing blob-storage (MixinStorage) for payment proof screenshots
+- AnonCash in-app currency system
+- Referral code system (each user's referral code = their anonymousId)
+- Level 1 reward: referred user sends 5+ messages → +1 AnonCash (24h delay)
+- Level 2 reward: 5 qualified Level 1 referrals → +10 AnonCash (24h delay)
+- Level 3 reward: referred user calls buyPremium → +50 AnonCash (24h delay)
+- Anti-cheat: 24h reward delay, daily 100 AC cap, no self-referral, one referrer per user
+- New Earn tab (6th nav item) with balance, referral code, level progress, pending rewards, claim UI
+- `buyPremium()` backend endpoint for L3 trigger
+- New Motoko types: RewardLevel, RewardStatus, PendingReward, ReferralStats
 
 ### Modify
-- App.tsx — add P2P tab to bottom navigation
-- backend.d.ts — add new P2P types and function signatures
+- main.mo: Add referral types, state, helper functions, referral endpoints; track message count in sendMessage to trigger L1 reward
+- App.tsx: Add "Earn" (Kazan) tab to bottom navigation
+- backend.d.ts: Add PendingReward, ReferralStats types
 
 ### Remove
 - Nothing removed
 
 ## Implementation Plan
-1. Add P2P types (P2PListing, P2PTrade, ListingStatus, TradeStatus, P2PTradeView) to Motoko backend
-2. Add listing/trade state maps (p2pListings, p2pTrades, counters)
-3. Implement all P2P endpoints with proper auth/validation
-4. Implement ID transfer logic (anonIdToPrincipal update, user record update)
-5. Implement 15-minute expiry check in buyListing and markPaymentSent
-6. Generate updated backend.d.ts with new types
-7. Build P2PMarket.tsx component:
-   - Browse tab: active listings grid
-   - My Listings tab: seller's listings + create new listing form
-   - My Trades tab: active/completed trades with countdown timer
-8. Build trade flow modals:
-   - BuyModal: confirm buy → show IBAN → payment sent form (ref number + screenshot upload)
-   - SellerTradeModal: incoming trade notification → confirm/reject actions
-9. Add countdown timer (15 min) for active trades
-10. Integrate P2P tab in App.tsx navigation
+1. Backend (main.mo):
+   - Add RewardLevel, RewardStatus, PendingReward, ReferralStats types
+   - Add referral state maps (referralCodes, referredBy, userReferrals, anonCashBalance, pendingRewardMap, userPendingRewardIds, level1Issued, level2Issued, level3Issued, dailyEarnings, userMsgCount)
+   - Add constants: REWARD_DELAY_NS (24h), DAILY_EARN_CAP (100), ACTIVE_MSG_THRESHOLD (5)
+   - Add helper funcs: appendPrincipalArr, appendNatArr, addPendingRewardToUser, checkAndIssueReferralReward
+   - Modify sendMessage to increment userMsgCount and call checkAndIssueReferralReward at threshold=5
+   - Add public funcs: generateReferralCode, getReferralCode, useReferralCode, getAnonCashBalance, getPendingRewards, claimReward, getReferralStats, buyPremium
+2. Frontend:
+   - Add PendingReward, ReferralStats types to backend.d.ts
+   - Create EarnTab.tsx: balance display, referral code card, level progress, claimable/pending rewards list, how-it-works section
+   - Update App.tsx: add Earn tab type, nav item, and render
