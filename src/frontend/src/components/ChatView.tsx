@@ -38,7 +38,6 @@ import { toast } from "sonner";
 import type { UserProfile } from "../backend";
 import type { VoiceMessage } from "../backend.d";
 import { loadConfig } from "../config";
-import { useNotifications } from "../context/NotificationContext";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
@@ -375,8 +374,6 @@ function ChatWindow({
   const scrollRef = useRef<HTMLDivElement>(null);
   const { identity } = useInternetIdentity();
 
-  const { addNotification } = useNotifications();
-  const prevMsgCountRef = useRef(0);
   const { data: messages = [] } = useGetConversation(contactAnonId);
   const { data: voiceMessages = [] } = useGetVoiceMessages(contactAnonId);
   const { data: blockedUsers = [] } = useGetBlockedUsers();
@@ -386,24 +383,6 @@ function ChatWindow({
   const unblockUser = useUnblockUser();
 
   const isBlocked = blockedUsers.includes(contactAnonId);
-
-  // Notify on new incoming messages
-  useEffect(() => {
-    if (messages.length > prevMsgCountRef.current) {
-      const newest = messages[messages.length - 1];
-      if (newest && newest.senderId !== myAnonId) {
-        addNotification({
-          type: "message",
-          title: `Yeni mesaj: ${contactAnonId}`,
-          body:
-            newest.content.length > 60
-              ? `${newest.content.slice(0, 60)}…`
-              : newest.content,
-        });
-      }
-    }
-    prevMsgCountRef.current = messages.length;
-  }, [messages, myAnonId, contactAnonId, addNotification]);
 
   // Merge text + voice messages, sort by timestamp
   const unified: UnifiedMessage[] = [

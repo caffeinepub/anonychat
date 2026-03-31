@@ -52,7 +52,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { P2PListing, P2PTrade } from "../backend.d";
-import { useNotifications } from "../context/NotificationContext";
 import { useActor } from "../hooks/useActor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1141,7 +1140,6 @@ function RealBuyFlowSheet({
   onSuccess,
 }: RealBuyFlowSheetProps) {
   const { actor } = useActor();
-  const { addNotification } = useNotifications();
   const [step, setStep] = useState<RealBuyStep>(existingTrade ? 3 : 1);
   const [currentTrade, setCurrentTrade] = useState<P2PTrade | null>(
     existingTrade,
@@ -1222,11 +1220,6 @@ function RealBuyFlowSheet({
       setStep(5);
       onSuccess();
       toast.success("Payment proof submitted!");
-      addNotification({
-        type: "p2p_trade",
-        title: "Ödeme Gönderildi",
-        body: "Ödeme kanıtınız satıcıya iletildi. Onay bekleniyor.",
-      });
     } catch {
       toast.error("Failed to submit proof. Please try again.");
     } finally {
@@ -1837,18 +1830,11 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
     }
   };
 
-  const { addNotification } = useNotifications();
-
   const handleConfirmTrade = async (id: bigint) => {
     if (!actor) return;
     try {
       await (actor as any).confirmTrade(id);
       toast.success("Trade confirmed! ID transfer initiated.");
-      addNotification({
-        type: "p2p_trade",
-        title: "İşlem Onaylandı",
-        body: "ID transferi başlatıldı. Tebrikler!",
-      });
       fetchTrades();
     } catch {
       toast.error("Failed to confirm trade");
