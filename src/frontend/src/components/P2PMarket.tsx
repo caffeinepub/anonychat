@@ -81,7 +81,7 @@ interface FakeListing {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ADMIN_IBAN = "DE02 1001 0010 0987 6543 21";
+const ADMIN_IBAN = "LT913130010131376235";
 
 const FAKE_LISTINGS: FakeListing[] = [
   {
