@@ -37,7 +37,9 @@ import {
   ImagePlus,
   Loader2,
   Lock,
+  MessageCircle,
   Plus,
+  Send,
   Settings,
   Shield,
   ShieldCheck,
@@ -45,13 +47,20 @@ import {
   Star,
   Tag,
   Wallet,
+  X,
   XCircle,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { P2PListing, P2PTrade } from "../backend.d";
+import type {
+  P2PListing,
+  P2PTrade,
+  SellerStats,
+  TradeMessage,
+  TradeReview,
+} from "../backend.d";
 import { useActor } from "../hooks/useActor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -623,7 +632,6 @@ function FakeBuyFlowSheet({ open, onClose, listing }: FakeBuyFlowSheetProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const imagePreviewRef = useRef<string | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset fires only when modal opens
   useEffect(() => {
     if (open) {
       setStep(1);
@@ -1152,7 +1160,6 @@ function RealBuyFlowSheet({
   const [loading, setLoading] = useState(false);
   const imagePreviewRef = useRef<string | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset fires only when modal opens
   useEffect(() => {
     if (open) {
       if (existingTrade) {
@@ -1680,6 +1687,298 @@ function AdminDialog({ open, onClose, myAnonId, onListed }: AdminDialogProps) {
   );
 }
 
+// ─── TradeChatSheet ───────────────────────────────────────────────────────────
+
+interface TradeChatSheetProps {
+  open: boolean;
+  onClose: () => void;
+  tradeId: bigint;
+  tradedAnonId: string;
+  myAnonId: string;
+  isActive: boolean;
+}
+
+function TradeChatSheet({
+  open,
+  onClose,
+  tradeId,
+  tradedAnonId,
+  myAnonId,
+  isActive,
+}: TradeChatSheetProps) {
+  const { actor } = useActor();
+  const [messages, setMessages] = useState<TradeMessage[]>([]);
+  const [msgText, setMsgText] = useState("");
+  const [sending, setSending] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: poll only on open/actor
+  useEffect(() => {
+    if (!open || !actor) return;
+    const poll = async () => {
+      if (!actor) return;
+      try {
+        const data = (await (actor as any).getTradeMessages(
+          tradeId,
+        )) as TradeMessage[];
+        setMessages(data);
+      } catch {
+        /* silent */
+      }
+      pollRef.current = setTimeout(poll, 3000);
+    };
+    poll();
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, [open, actor]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!actor || !msgText.trim() || !isActive) return;
+    setSending(true);
+    try {
+      const newMsg = (await (actor as any).sendTradeMessage(
+        tradeId,
+        msgText.trim(),
+      )) as TradeMessage;
+      setMsgText("");
+      setMessages((prev) => [...prev, newMsg]);
+    } catch {
+      toast.error("Mesaj gönderilemedi");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatTime = (ns: bigint) => {
+    const ms = Number(ns / BigInt(1_000_000));
+    return new Date(ms).toLocaleTimeString("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent
+        side="bottom"
+        className="h-[85vh] flex flex-col bg-zinc-950 border-white/10 p-0 rounded-t-2xl"
+      >
+        <SheetHeader className="px-4 pt-4 pb-3 border-b border-white/10 flex-row items-center justify-between">
+          <SheetTitle className="flex items-center gap-2 text-sm font-bold">
+            <MessageCircle className="w-4 h-4 text-primary" />
+            Trade Chat —{" "}
+            <span className="text-primary font-mono">{tradedAnonId}</span>
+          </SheetTitle>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 text-muted-foreground"
+            data-ocid="p2p.close_button"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </SheetHeader>
+
+        {!isActive && (
+          <div className="mx-4 mt-3 px-3 py-2 bg-zinc-800/60 border border-white/10 rounded-lg text-xs text-muted-foreground text-center">
+            Bu trade tamamlandı — sohbet salt okunur modda
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          {messages.length === 0 && (
+            <div className="text-center text-xs text-muted-foreground py-8">
+              Henüz mesaj yok. İlk mesajı gönder!
+            </div>
+          )}
+          {messages.map((msg) => {
+            const isMine = msg.senderAnonId === myAnonId;
+            return (
+              <div
+                key={String(msg.id)}
+                className={cn("flex", isMine ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[75%] rounded-2xl px-3 py-2 space-y-0.5",
+                    isMine
+                      ? "bg-primary/20 border border-primary/30"
+                      : "bg-white/8 border border-white/10",
+                  )}
+                >
+                  {!isMine && (
+                    <p className="text-[9px] font-mono text-muted-foreground">
+                      {msg.senderAnonId}
+                    </p>
+                  )}
+                  <p className="text-sm text-foreground leading-snug">
+                    {msg.content}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground/60 text-right">
+                    {formatTime(msg.createdAt)}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
+
+        {isActive && (
+          <div className="px-4 pb-4 pt-2 border-t border-white/8 flex gap-2">
+            <input
+              type="text"
+              value={msgText}
+              onChange={(e) => setMsgText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              placeholder="Mesajınızı yazın…"
+              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
+              data-ocid="p2p.input"
+            />
+            <Button
+              size="sm"
+              className="h-10 w-10 p-0 bg-primary hover:bg-primary/80 rounded-xl"
+              onClick={handleSend}
+              disabled={sending || !msgText.trim()}
+              data-ocid="p2p.submit_button"
+            >
+              {sending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ─── RateSellerSheet ──────────────────────────────────────────────────────────
+
+interface RateSellerSheetProps {
+  open: boolean;
+  onClose: () => void;
+  trade: P2PTrade | null;
+  onRated: (tradeId: bigint) => void;
+}
+
+function RateSellerSheet({
+  open,
+  onClose,
+  trade,
+  onRated,
+}: RateSellerSheetProps) {
+  const { actor } = useActor();
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!actor || !trade || stars === 0) return;
+    setSubmitting(true);
+    try {
+      (await (actor as any).submitTradeReview(
+        trade.id,
+        BigInt(stars),
+        comment,
+      )) as TradeReview;
+      toast.success("Değerlendirme gönderildi ✓");
+      onRated(trade.id);
+      onClose();
+    } catch {
+      toast.error("Değerlendirme gönderilemedi");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent
+        side="bottom"
+        className="h-auto bg-zinc-950 border-white/10 p-0 rounded-t-2xl"
+      >
+        <SheetHeader className="px-4 pt-4 pb-3 border-b border-white/10">
+          <SheetTitle className="flex items-center gap-2 text-sm font-bold">
+            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+            Satıcıyı Değerlendir
+          </SheetTitle>
+        </SheetHeader>
+        <div className="px-4 py-5 space-y-5">
+          <div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Kaç yıldız verirsiniz?
+            </p>
+            <div className="flex gap-2 justify-center">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setStars(n)}
+                  className="focus:outline-none transition-transform active:scale-90"
+                  data-ocid="p2p.toggle"
+                >
+                  <Star
+                    className={cn(
+                      "w-9 h-9 transition-colors",
+                      n <= stars
+                        ? "text-amber-400 fill-amber-400"
+                        : "text-zinc-600",
+                    )}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Nasıl bir deneyimdi?"
+              rows={3}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
+              data-ocid="p2p.textarea"
+            />
+          </div>
+          <div className="flex gap-3 pb-2">
+            <Button
+              variant="outline"
+              className="flex-1 border-white/10"
+              onClick={onClose}
+              data-ocid="p2p.cancel_button"
+            >
+              İptal
+            </Button>
+            <Button
+              className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-bold"
+              onClick={handleSubmit}
+              disabled={submitting || stars === 0}
+              data-ocid="p2p.submit_button"
+            >
+              {submitting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Star className="w-4 h-4 mr-2 fill-current" />
+              )}
+              Gönder
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── P2PMarket (main export) ──────────────────────────────────────────────────
 
 export function P2PMarket({ myAnonId }: { myAnonId: string }) {
@@ -1717,6 +2016,15 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
 
   // Admin
   const [adminOpen, setAdminOpen] = useState(false);
+
+  // Trade Chat
+  const [chatTrade, setChatTrade] = useState<P2PTrade | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  // Rate Seller
+  const [rateTrade, setRateTrade] = useState<P2PTrade | null>(null);
+  const [rateOpen, setRateOpen] = useState(false);
+  const [ratedTradeIds, setRatedTradeIds] = useState<Set<string>>(new Set());
 
   // ── Check admin role ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2355,6 +2663,25 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                         Trade #{Number(trade.id)}
                       </p>
 
+                      {/* Escrow badge for active trades */}
+                      {(statusKind === "Pending" ||
+                        statusKind === "PaymentSent") && (
+                        <div className="flex items-start gap-2 bg-emerald-950/30 border border-emerald-700/30 rounded-lg px-3 py-2.5 mb-3">
+                          <span className="text-base leading-none mt-0.5">
+                            🔒
+                          </span>
+                          <div>
+                            <p className="text-xs font-bold text-emerald-400">
+                              ID Escrow&apos;da
+                            </p>
+                            <p className="text-[10px] text-emerald-300/70 leading-tight mt-0.5">
+                              ID sistem güvencesinde • Transfer sadece onayda
+                              gerçekleşir
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Countdown for buyer + Pending */}
                       {isBuyer && statusKind === "Pending" && (
                         <div className="flex items-center justify-between mb-3 bg-amber-950/20 rounded-lg px-3 py-2 border border-amber-700/20">
@@ -2443,6 +2770,50 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                         </div>
                       )}
 
+                      {/* Trade Chat button for active trades */}
+                      {(statusKind === "Pending" ||
+                        statusKind === "PaymentSent") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-primary/30 text-primary hover:bg-primary/10 h-9 text-xs mt-2"
+                          onClick={() => {
+                            setChatTrade(trade);
+                            setChatOpen(true);
+                          }}
+                          data-ocid="p2p.secondary_button"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
+                          {isBuyer ? "💬 Satıcıyla Yaz" : "💬 Alıcıyla Yaz"}
+                        </Button>
+                      )}
+
+                      {/* Rate seller button after confirmed trade (buyer only) */}
+                      {isBuyer &&
+                        statusKind === "Confirmed" &&
+                        !ratedTradeIds.has(String(trade.id)) && (
+                          <Button
+                            size="sm"
+                            className="w-full bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 h-9 text-xs mt-2"
+                            onClick={() => {
+                              setRateTrade(trade);
+                              setRateOpen(true);
+                            }}
+                            data-ocid="p2p.secondary_button"
+                          >
+                            <Star className="w-3.5 h-3.5 mr-1.5 fill-current" />
+                            ⭐ Satıcıyı Değerlendir
+                          </Button>
+                        )}
+                      {isBuyer &&
+                        statusKind === "Confirmed" &&
+                        ratedTradeIds.has(String(trade.id)) && (
+                          <div className="flex items-center gap-1.5 mt-2 text-[10px] text-amber-400/70">
+                            <Star className="w-3 h-3 fill-current" />
+                            Değerlendirme gönderildi ✓
+                          </div>
+                        )}
+
                       {/* Confirmed state */}
                       {statusKind === "Confirmed" && (
                         <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-700/20 rounded-lg px-3 py-2">
@@ -2502,6 +2873,37 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
         listing={null}
         existingTrade={proofTrade}
         onSuccess={onBuySuccess}
+      />
+
+      {/* ── Trade Chat Sheet ──────────────────────────────────────────────────── */}
+      <TradeChatSheet
+        open={chatOpen}
+        onClose={() => {
+          setChatOpen(false);
+          setChatTrade(null);
+        }}
+        tradeId={chatTrade?.id ?? BigInt(0)}
+        tradedAnonId={chatTrade?.listedAnonId ?? ""}
+        myAnonId={myAnonId}
+        isActive={
+          chatTrade
+            ? chatTrade.status.__kind__ === "Pending" ||
+              chatTrade.status.__kind__ === "PaymentSent"
+            : false
+        }
+      />
+
+      {/* ── Rate Seller Sheet ──────────────────────────────────────────────────── */}
+      <RateSellerSheet
+        open={rateOpen}
+        onClose={() => {
+          setRateOpen(false);
+          setRateTrade(null);
+        }}
+        trade={rateTrade}
+        onRated={(id) =>
+          setRatedTradeIds((prev) => new Set([...prev, String(id)]))
+        }
       />
 
       {/* ── Admin dialog ─────────────────────────────────────────────────────── */}

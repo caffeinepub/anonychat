@@ -177,6 +177,34 @@ export interface ReferralStats {
     level3Count: bigint;
 }
 
+
+// Trade Review & Chat Types
+export interface TradeReview {
+    id: bigint;
+    tradeId: bigint;
+    reviewerPrincipal: Principal;
+    targetPrincipal: Principal;
+    targetAnonId: string;
+    stars: bigint;
+    comment: string;
+    createdAt: bigint;
+}
+
+export interface TradeMessage {
+    id: bigint;
+    tradeId: bigint;
+    senderPrincipal: Principal;
+    senderAnonId: string;
+    content: string;
+    createdAt: bigint;
+}
+
+export interface SellerStats {
+    averageRating: bigint;
+    totalReviews: bigint;
+    completedTrades: bigint;
+}
+
 export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     blockUser(anonId: string): Promise<void>;
@@ -230,4 +258,11 @@ export interface backendInterface {
     claimReward(rewardId: bigint): Promise<bigint>;
     getReferralStats(): Promise<ReferralStats>;
     buyPremium(): Promise<void>;
+    // Trade Reviews
+    submitTradeReview(tradeId: bigint, stars: bigint, comment: string): Promise<TradeReview>;
+    getSellerReviews(sellerAnonId: string): Promise<Array<TradeReview>>;
+    getSellerStats(sellerAnonId: string): Promise<SellerStats>;
+    // Trade Chat
+    sendTradeMessage(tradeId: bigint, content: string): Promise<TradeMessage>;
+    getTradeMessages(tradeId: bigint): Promise<Array<TradeMessage>>;
 }

@@ -139,6 +139,37 @@ actor {
     paymentSentAt : ?Int;
   };
 
+
+  // =====================
+  // P2P TRADE REVIEW & CHAT TYPES
+  // =====================
+
+  public type TradeReview = {
+    id : Nat;
+    tradeId : Nat;
+    reviewerPrincipal : Principal;
+    targetPrincipal : Principal;
+    targetAnonId : Text;
+    stars : Nat;
+    comment : Text;
+    createdAt : Int;
+  };
+
+  public type TradeMessage = {
+    id : Nat;
+    tradeId : Nat;
+    senderPrincipal : Principal;
+    senderAnonId : Text;
+    content : Text;
+    createdAt : Int;
+  };
+
+  public type SellerStats = {
+    averageRating : Nat;
+    totalReviews : Nat;
+    completedTrades : Nat;
+  };
+
   // =====================
   // ANONCASH REFERRAL TYPES
   // =====================
@@ -200,6 +231,12 @@ actor {
   stable let p2pTrades = Map.empty<Nat, P2PTrade>();
   stable var listingIdCounter = 0;
   stable var tradeIdCounter = 0;
+
+  // --- Trade Reviews & Chat ---
+  stable let tradeReviews = Map.empty<Nat, TradeReview>();
+  stable var reviewIdCounter = 0;
+  stable let tradeMessages = Map.empty<Nat, TradeMessage>();
+  stable var tradeMessageIdCounter = 0;
 
   // --- AnonCash Referral System ---
   stable let referralCodes = Map.empty<Text, Principal>();
@@ -1418,4 +1455,123 @@ actor {
       level3Count = l3Count;
     };
   };
+
+  // =====================
+  // TRADE REVIEW ENDPOINTS
+  // =====================
+
+  public shared ({ caller }) func submitTradeReview(tradeId : Nat, stars : Nat, comment : Text) : async TradeReview {
+    if (stars < 1 or stars > 5) { Runtime.trap("Stars must be between 1 and 5") };
+    let trade = switch (p2pTrades.get(tradeId)) {
+      case (null) { Runtime.trap("Trade not found") };
+      case (?t) { t };
+    };
+    // Only buyer can review seller, only after confirmed/completed
+    if (trade.buyerPrincipal != caller) {
+      Runtime.trap("Only buyer can submit a review");
+    };
+    switch (trade.status) {
+      case (#Confirmed) {};
+      case (_) { Runtime.trap("Trade must be confirmed before reviewing") };
+    };
+    // Prevent duplicate reviews
+    for ((_, rv) in tradeReviews.entries()) {
+      if (rv.tradeId == tradeId and rv.reviewerPrincipal == caller) {
+        Runtime.trap("You already reviewed this trade");
+      };
+    };
+    let reviewId = reviewIdCounter;
+    reviewIdCounter += 1;
+    let review : TradeReview = {
+      id = reviewId;
+      tradeId = tradeId;
+      reviewerPrincipal = caller;
+      targetPrincipal = trade.sellerPrincipal;
+      targetAnonId = trade.sellerAnonId;
+      stars = stars;
+      comment = comment;
+      createdAt = Time.now();
+    };
+    tradeReviews.add(reviewId, review);
+    review;
+  };
+
+  public query func getSellerReviews(sellerAnonId : Text) : async [TradeReview] {
+    tradeReviews.values().filter(
+      func(r : TradeReview) : Bool { r.targetAnonId == sellerAnonId }
+    ).toArray();
+  };
+
+  public query func getSellerStats(sellerAnonId : Text) : async SellerStats {
+    let reviews = tradeReviews.values().filter(
+      func(r : TradeReview) : Bool { r.targetAnonId == sellerAnonId }
+    ).toArray();
+    let totalReviews = reviews.size();
+    var totalStars : Nat = 0;
+    for (r in reviews.vals()) { totalStars += r.stars };
+    let avg : Nat = if (totalReviews == 0) { 0 } else {
+      (totalStars * 10) / totalReviews
+    };
+    let completedCount = p2pTrades.values().filter(
+      func(t : P2PTrade) : Bool {
+        t.sellerAnonId == sellerAnonId and (
+          switch (t.status) { case (#Confirmed) { true }; case (_) { false } }
+        )
+      }
+    ).toArray().size();
+    { averageRating = avg; totalReviews = totalReviews; completedTrades = completedCount };
+  };
+
+  // =====================
+  // TRADE CHAT ENDPOINTS
+  // =====================
+
+  public shared ({ caller }) func sendTradeMessage(tradeId : Nat, content : Text) : async TradeMessage {
+    let trade = switch (p2pTrades.get(tradeId)) {
+      case (null) { Runtime.trap("Trade not found") };
+      case (?t) { t };
+    };
+    if (trade.buyerPrincipal != caller and trade.sellerPrincipal != caller) {
+      Runtime.trap("Not your trade");
+    };
+    // Only allow chat on active trades
+    switch (trade.status) {
+      case (#Cancelled) { Runtime.trap("Trade is cancelled") };
+      case (#Rejected) { Runtime.trap("Trade is rejected") };
+      case (_) {};
+    };
+    if (content.size() == 0 or content.size() > 500) {
+      Runtime.trap("Message must be between 1 and 500 characters");
+    };
+    let senderUser = switch (users.get(caller)) {
+      case (null) { Runtime.trap("User not found") };
+      case (?u) { u };
+    };
+    let msgId = tradeMessageIdCounter;
+    tradeMessageIdCounter += 1;
+    let msg : TradeMessage = {
+      id = msgId;
+      tradeId = tradeId;
+      senderPrincipal = caller;
+      senderAnonId = senderUser.anonymousId;
+      content = content;
+      createdAt = Time.now();
+    };
+    tradeMessages.add(msgId, msg);
+    msg;
+  };
+
+  public query ({ caller }) func getTradeMessages(tradeId : Nat) : async [TradeMessage] {
+    let trade = switch (p2pTrades.get(tradeId)) {
+      case (null) { Runtime.trap("Trade not found") };
+      case (?t) { t };
+    };
+    if (trade.buyerPrincipal != caller and trade.sellerPrincipal != caller) {
+      Runtime.trap("Not your trade");
+    };
+    tradeMessages.values().filter(
+      func(m : TradeMessage) : Bool { m.tradeId == tradeId }
+    ).toArray();
+  };
+
 };
