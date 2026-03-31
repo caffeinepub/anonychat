@@ -102,6 +102,8 @@ const COMMON_EMOJIS = [
   "🌀",
 ];
 
+type GhostTimer = 10 | 30 | 60;
+
 function loadContacts(): string[] {
   try {
     const raw = localStorage.getItem(CONTACTS_KEY);
@@ -131,6 +133,61 @@ function formatTime(nanoseconds: bigint): string {
     hour12: false,
   });
 }
+
+// ─── Ghost local countdown ──────────────────────────────────────────────────
+
+function GhostLocalCountdown({
+  msgId,
+  timerSec,
+  onExpire,
+}: {
+  msgId: string;
+  timerSec: number;
+  onExpire: () => void;
+}) {
+  const key = `ghost_timer_${msgId}`;
+
+  const [seconds, setSeconds] = useState(() => {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const expiresAt = Number(stored);
+      const remaining = Math.max(
+        0,
+        Math.floor((expiresAt - Date.now()) / 1000),
+      );
+      return remaining;
+    }
+    // First view — set expiry
+    const expiresAt = Date.now() + timerSec * 1000;
+    localStorage.setItem(key, String(expiresAt));
+    return timerSec;
+  });
+
+  useEffect(() => {
+    if (seconds <= 0) {
+      onExpire();
+      return;
+    }
+    const t = setInterval(() => {
+      setSeconds((s) => {
+        if (s <= 1) {
+          onExpire();
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [seconds, onExpire]);
+
+  return (
+    <span className="text-[10px] text-purple-400/80 ml-1 font-mono tabular-nums">
+      💀 {seconds}s
+    </span>
+  );
+}
+
+// ─── Backend ghost countdown (uses ghostDeleteAt from backend) ───────────────
 
 function GhostCountdown({
   ghostDeleteAt,
@@ -169,6 +226,40 @@ function GhostCountdown({
   );
 }
 
+// ─── Burn countdown overlay ──────────────────────────────────────────────────
+
+function BurnCountdownOverlay({ onDone }: { onDone: () => void }) {
+  const [count, setCount] = useState(3);
+
+  useEffect(() => {
+    if (count <= 0) {
+      onDone();
+      return;
+    }
+    const t = setTimeout(() => setCount((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [count, onDone]);
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center rounded-2xl overflow-hidden z-10">
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={count}
+          initial={{ scale: 0.3, opacity: 0 }}
+          animate={{ scale: 1.4, opacity: 1 }}
+          exit={{ scale: 2, opacity: 0 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="text-5xl font-black text-red-500 drop-shadow-[0_0_12px_rgba(239,68,68,0.9)]"
+        >
+          {count === 0 ? "🔥" : count}
+        </motion.span>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Message Bubble ──────────────────────────────────────────────────────────
+
 function MessageBubble({
   msg,
   isMine,
@@ -179,61 +270,164 @@ function MessageBubble({
   otherAnonId: string;
 }) {
   const [expired, setExpired] = useState(false);
+  const [burning, setBurning] = useState(false);
+  const [showBurnCountdown, setShowBurnCountdown] = useState(false);
+  const [burnDone, setBurnDone] = useState(false);
+  const viewedRef = useRef(false);
   const deleteMessage = useDeleteMessage();
+
+  const isBurn = msg.content.startsWith("[BURN]");
+  const displayContent = isBurn ? msg.content.slice(6).trim() : msg.content;
+
+  // Detect first view for ghost/burn
+  // biome-ignore lint/correctness/useExhaustiveDependencies: trigger once
+  useEffect(() => {
+    if (!viewedRef.current && !isMine) {
+      viewedRef.current = true;
+      if (isBurn) {
+        setShowBurnCountdown(true);
+      }
+    }
+  }, []);
 
   const handleExpire = useCallback(() => {
     setExpired(true);
     deleteMessage.mutate({ msgId: msg.id, otherAnonId });
   }, [deleteMessage, msg.id, otherAnonId]);
 
-  if (expired) return null;
+  const handleBurnCountdownDone = useCallback(() => {
+    setShowBurnCountdown(false);
+    setBurning(true);
+    // After burn animation, remove
+    setTimeout(() => {
+      setBurnDone(true);
+      deleteMessage.mutate({ msgId: msg.id, otherAnonId });
+    }, 900);
+  }, [deleteMessage, msg.id, otherAnonId]);
+
+  if (expired || burnDone) return null;
+
+  // Ghost timer — extract from content if encoded as [GHOST:Ns]
+  let ghostTimerSec: number | null = null;
+  let contentForGhost = msg.content;
+  const ghostMatch = msg.content.match(/^\[GHOST:(\d+)\](.*)$/s);
+  if (ghostMatch) {
+    ghostTimerSec = Number(ghostMatch[1]);
+    contentForGhost = ghostMatch[2].trim();
+  }
+
+  const isEnhancedGhost = msg.isGhost && ghostTimerSec !== null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: isMine ? 20 : -20, y: 4 }}
-      animate={{ opacity: 1, x: 0, y: 0 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className={`flex ${isMine ? "justify-end" : "justify-start"} mb-1`}
-    >
-      <div
-        className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words ${
-          isMine
-            ? "bg-primary/20 text-foreground rounded-br-sm border border-primary/30"
-            : "bg-white/5 text-foreground rounded-bl-sm border border-white/8"
-        } ${msg.isGhost ? "border-dashed" : ""}`}
-      >
-        {msg.isGhost && <span className="mr-1 text-[13px]">👻</span>}
-        <span>{msg.content}</span>
-        <div
-          className={`flex items-center gap-1 mt-0.5 ${
-            isMine ? "justify-end" : "justify-start"
-          }`}
+    <AnimatePresence>
+      {!burnDone && !expired && (
+        <motion.div
+          initial={{ opacity: 0, x: isMine ? 20 : -20, y: 4 }}
+          animate={{
+            opacity: burning ? 0 : 1,
+            x: burning ? 0 : 0,
+            y: burning ? -20 : 0,
+            scale: burning ? 1.08 : 1,
+            filter: burning ? "brightness(2) saturate(3)" : "none",
+          }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={{ duration: burning ? 0.8 : 0.2, ease: "easeOut" }}
+          className={`flex ${isMine ? "justify-end" : "justify-start"} mb-1`}
         >
-          <span className="text-[10px] text-muted-foreground">
-            {formatTime(msg.timestamp)}
-          </span>
-          {msg.isGhost && msg.ghostDeleteAt != null && (
-            <GhostCountdown
-              ghostDeleteAt={msg.ghostDeleteAt}
-              onExpire={handleExpire}
-            />
-          )}
-          {isMine && (
-            <button
-              type="button"
-              onClick={() =>
-                deleteMessage.mutate({ msgId: msg.id, otherAnonId })
-              }
-              className="ml-1 text-muted-foreground/30 hover:text-destructive transition-colors"
-              data-ocid="chat.delete_button"
+          <div
+            className={`relative max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words ${
+              isMine
+                ? "bg-primary/20 text-foreground rounded-br-sm"
+                : "bg-white/5 text-foreground rounded-bl-sm"
+            } ${
+              isBurn
+                ? "border-2 border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.3)]"
+                : msg.isGhost
+                  ? "border border-dashed border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.2)]"
+                  : isMine
+                    ? "border border-primary/30"
+                    : "border border-white/8"
+            }`}
+          >
+            {/* Burn countdown overlay */}
+            {showBurnCountdown && (
+              <BurnCountdownOverlay onDone={handleBurnCountdownDone} />
+            )}
+
+            {/* Burn icon for sender */}
+            {isBurn && isMine && <span className="mr-1 text-[13px]">🔥</span>}
+
+            {/* Ghost icon */}
+            {msg.isGhost && !isBurn && (
+              <span className="mr-1 text-[13px]">👻</span>
+            )}
+
+            <span>
+              {isBurn
+                ? displayContent
+                : isEnhancedGhost
+                  ? contentForGhost
+                  : msg.content}
+            </span>
+
+            <div
+              className={`flex items-center gap-1 mt-0.5 ${
+                isMine ? "justify-end" : "justify-start"
+              }`}
             >
-              <Trash2 className="w-2.5 h-2.5" />
-            </button>
-          )}
-        </div>
-      </div>
-    </motion.div>
+              <span className="text-[10px] text-muted-foreground">
+                {formatTime(msg.timestamp)}
+              </span>
+
+              {/* Enhanced ghost with local timer */}
+              {isEnhancedGhost && !isMine && (
+                <GhostLocalCountdown
+                  msgId={msg.id.toString()}
+                  timerSec={ghostTimerSec!}
+                  onExpire={handleExpire}
+                />
+              )}
+
+              {/* Backend ghost countdown */}
+              {msg.isGhost &&
+                !isBurn &&
+                !isEnhancedGhost &&
+                msg.ghostDeleteAt != null && (
+                  <GhostCountdown
+                    ghostDeleteAt={msg.ghostDeleteAt}
+                    onExpire={handleExpire}
+                  />
+                )}
+
+              {isMine && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    deleteMessage.mutate({ msgId: msg.id, otherAnonId })
+                  }
+                  className="ml-1 text-muted-foreground/30 hover:text-destructive transition-colors"
+                  data-ocid="chat.delete_button"
+                >
+                  <Trash2 className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Sender labels */}
+            {isMine && msg.isGhost && !isBurn && (
+              <div className="text-[9px] text-purple-400/60 mt-0.5 flex items-center gap-0.5">
+                👻 hayalet mesaj
+              </div>
+            )}
+            {isMine && isBurn && (
+              <div className="text-[9px] text-red-400/60 mt-0.5 flex items-center gap-0.5">
+                🔥 Yak ve Unut
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -367,6 +561,8 @@ function ChatWindow({
 }) {
   const [input, setInput] = useState("");
   const [ghostMode, setGhostMode] = useState(false);
+  const [burnMode, setBurnMode] = useState(false);
+  const [ghostTimer, setGhostTimer] = useState<GhostTimer>(60);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
@@ -384,7 +580,6 @@ function ChatWindow({
 
   const isBlocked = blockedUsers.includes(contactAnonId);
 
-  // Merge text + voice messages, sort by timestamp
   const unified: UnifiedMessage[] = [
     ...messages.map(
       (m): UnifiedMessage => ({
@@ -414,15 +609,39 @@ function ChatWindow({
     }
   }, [msgCount]);
 
+  const toggleGhost = () => {
+    setGhostMode((v) => !v);
+    setBurnMode(false);
+  };
+
+  const toggleBurn = () => {
+    setBurnMode((v) => !v);
+    setGhostMode(false);
+  };
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text) return;
     setInput("");
+    setGhostMode(false);
+    setBurnMode(false);
+
+    let content = text;
+    let isGhost = false;
+
+    if (burnMode) {
+      content = `[BURN] ${text}`;
+      isGhost = true;
+    } else if (ghostMode) {
+      content = `[GHOST:${ghostTimer}] ${text}`;
+      isGhost = true;
+    }
+
     try {
       await sendMessage.mutateAsync({
         receiverAnonId: contactAnonId,
-        content: text,
-        isGhost: ghostMode,
+        content,
+        isGhost,
       });
     } catch {
       toast.error("Failed to send message");
@@ -481,6 +700,8 @@ function ChatWindow({
       setIsSendingVoice(false);
     }
   };
+
+  const activeMode = burnMode ? "burn" : ghostMode ? "ghost" : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -620,6 +841,37 @@ function ChatWindow({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 4 }}
             >
+              {/* Ghost timer selector */}
+              <AnimatePresence>
+                {ghostMode && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-2 mb-2 overflow-hidden"
+                  >
+                    <span className="text-[10px] text-purple-400/70 flex-shrink-0">
+                      ⏱ Süre:
+                    </span>
+                    {([10, 30, 60] as GhostTimer[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setGhostTimer(t)}
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono border transition-all ${
+                          ghostTimer === t
+                            ? "bg-purple-500/20 border-purple-500/50 text-purple-400"
+                            : "bg-white/5 border-white/10 text-muted-foreground hover:border-white/20"
+                        }`}
+                        data-ocid="chat.toggle"
+                      >
+                        {t}s
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="flex items-end gap-2">
                 <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
                   <PopoverTrigger asChild>
@@ -656,18 +908,19 @@ function ChatWindow({
                   </PopoverContent>
                 </Popover>
 
+                {/* Ghost toggle */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setGhostMode((v) => !v)}
-                  className={`h-9 w-9 p-0 flex-shrink-0 transition-colors ${
+                  onClick={toggleGhost}
+                  className={`h-9 w-9 p-0 flex-shrink-0 transition-all ${
                     ghostMode
-                      ? "text-primary bg-primary/10 hover:bg-primary/20"
+                      ? "text-purple-400 bg-purple-500/15 hover:bg-purple-500/25 shadow-[0_0_8px_rgba(168,85,247,0.3)]"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                   title={
                     ghostMode
-                      ? "Ghost mode ON (auto-delete in 60s)"
+                      ? `Ghost mode ON (${ghostTimer}s)`
                       : "Ghost mode OFF"
                   }
                   data-ocid="chat.toggle"
@@ -675,21 +928,46 @@ function ChatWindow({
                   <span className="text-base">👻</span>
                 </Button>
 
+                {/* Burn toggle */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleBurn}
+                  className={`h-9 w-9 p-0 flex-shrink-0 transition-all ${
+                    burnMode
+                      ? "text-red-400 bg-red-500/15 hover:bg-red-500/25 shadow-[0_0_8px_rgba(239,68,68,0.3)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title={
+                    burnMode ? "Burn After Read ON" : "Burn After Read OFF"
+                  }
+                  data-ocid="chat.toggle"
+                >
+                  <span className="text-base">🔥</span>
+                </Button>
+
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={
-                    ghostMode ? "Ghost message (60s)..." : "Message..."
+                    burnMode
+                      ? "🔥 Yak ve unut..."
+                      : ghostMode
+                        ? `👻 Hayalet mesaj (${ghostTimer}s)...`
+                        : "Message..."
                   }
                   disabled={isBlocked}
                   className={`flex-1 bg-white/5 border-white/10 focus:border-primary/40 rounded-xl h-9 text-sm ${
-                    ghostMode ? "border-dashed border-primary/30" : ""
+                    burnMode
+                      ? "border-dashed border-red-500/40 focus:border-red-500/60"
+                      : ghostMode
+                        ? "border-dashed border-purple-500/40 focus:border-purple-500/60"
+                        : ""
                   }`}
                   data-ocid="chat.input"
                 />
 
-                {/* Mic button */}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -706,19 +984,46 @@ function ChatWindow({
                   size="sm"
                   onClick={handleSend}
                   disabled={!input.trim() || isBlocked || sendMessage.isPending}
-                  className="h-9 w-9 p-0 flex-shrink-0 bg-primary/80 hover:bg-primary text-primary-foreground rounded-xl"
+                  className={`h-9 w-9 p-0 flex-shrink-0 rounded-xl text-primary-foreground ${
+                    burnMode
+                      ? "bg-red-500/70 hover:bg-red-500"
+                      : ghostMode
+                        ? "bg-purple-500/70 hover:bg-purple-500"
+                        : "bg-primary/80 hover:bg-primary"
+                  }`}
                   data-ocid="chat.submit_button"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </Button>
               </div>
 
-              {ghostMode && (
-                <p className="text-[10px] text-primary/60 mt-1.5 flex items-center gap-1">
-                  <span>👻</span> Ghost mode — messages auto-delete after 60
-                  seconds
-                </p>
-              )}
+              {/* Mode indicator */}
+              <AnimatePresence>
+                {activeMode && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    className={`text-[10px] mt-1.5 flex items-center gap-1 ${
+                      activeMode === "burn"
+                        ? "text-red-400/70"
+                        : "text-purple-400/70"
+                    }`}
+                  >
+                    {activeMode === "burn" ? (
+                      <>
+                        <span>🔥</span> Yak ve Unut — karşı taraf mesajı açar
+                        açmaz 3 saniye sonra yanar
+                      </>
+                    ) : (
+                      <>
+                        <span>👻</span> Hayalet mod — mesaj {ghostTimer} saniye
+                        sonra yok olur
+                      </>
+                    )}
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
@@ -801,7 +1106,6 @@ export function ChatView({
     if (!id || !actor) return;
     setSearching(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (actor as any).findUserByAnonId(id);
       setSearchResult(result);
       if (!result) toast.error("User not found");
@@ -824,7 +1128,7 @@ export function ChatView({
 
   const handleSelectContact = (anonId: string) => {
     setActiveContact(anonId);
-    setActiveProfile(null); // will be updated by useEffect below
+    setActiveProfile(null);
     if (onActiveContactChange) onActiveContactChange(anonId);
   };
 
@@ -837,9 +1141,8 @@ export function ChatView({
       setActiveProfile(null);
       if (onActiveContactChange) onActiveContactChange(initialContact);
     }
-  }, [initialContact]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialContact]);
 
-  // Load profile when activeContact changes
   useEffect(() => {
     if (!activeContact || !actor) return;
     (actor as any)
