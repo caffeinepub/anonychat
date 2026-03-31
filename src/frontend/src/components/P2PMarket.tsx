@@ -81,7 +81,7 @@ interface FakeListing {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ADMIN_IBAN = "LT913130010131376235";
+const ADMIN_IBAN = "DE02 1001 0010 0987 6543 21";
 
 const FAKE_LISTINGS: FakeListing[] = [
   {
@@ -618,6 +618,7 @@ function FakeBuyFlowSheet({ open, onClose, listing }: FakeBuyFlowSheetProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const imagePreviewRef = useRef<string | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset fires only when modal opens
   useEffect(() => {
     if (open) {
       setStep(1);
@@ -1146,6 +1147,7 @@ function RealBuyFlowSheet({
   const [loading, setLoading] = useState(false);
   const imagePreviewRef = useRef<string | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset fires only when modal opens
   useEffect(() => {
     if (open) {
       if (existingTrade) {

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { HttpAgent } from "@icp-sdk/core/agent";
 import { Mic } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -72,23 +73,19 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [isSendingVoice, setIsSendingVoice] = useState(false);
 
-  // Use refs for recursive setTimeout IDs
-  const matchPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
-  const msgPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const msgPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Flags to stop recursive polls when they should be cancelled
-  const matchPollActive = useRef(false);
-  const msgPollActive = useRef(false);
-
-  const clearMatchPoll = useCallback(() => {
-    matchPollActive.current = false;
-    if (matchPollRef.current) {
-      clearTimeout(matchPollRef.current);
-      matchPollRef.current = null;
+  const clearPollIntervals = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
     }
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
@@ -97,17 +94,16 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
   }, []);
 
   const clearMsgPoll = useCallback(() => {
-    msgPollActive.current = false;
-    if (msgPollRef.current) {
-      clearTimeout(msgPollRef.current);
-      msgPollRef.current = null;
+    if (msgPollIntervalRef.current) {
+      clearInterval(msgPollIntervalRef.current);
+      msgPollIntervalRef.current = null;
     }
   }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup on unmount only
   useEffect(() => {
     return () => {
-      clearMatchPoll();
+      clearPollIntervals();
       clearMsgPoll();
     };
   }, []);
@@ -122,17 +118,14 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
 
   const startMatchPolling = useCallback(() => {
     if (!actor) return;
-    // Clear any existing poll first
-    clearMatchPoll();
 
     setCountdown(30);
-    matchPollActive.current = true;
 
-    // Countdown
+    // Countdown interval
     countdownIntervalRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearMatchPoll();
+          clearPollIntervals();
           setPhase("idle");
           toast.error("No stranger found. Try again!", { duration: 3000 });
           return 0;
@@ -141,45 +134,33 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
       });
     }, 1000);
 
-    // Recursive status poll
-    const poll = async () => {
-      if (!matchPollActive.current) return;
+    // Status poll
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const status: MatchStatus = await actor.checkMatchStatus();
         if ("Matched" in status) {
-          clearMatchPoll();
+          clearPollIntervals();
           setSessionId(status.Matched.sessionId);
           setPartnerAnonId(status.Matched.partnerAnonId);
           setMessages([]);
           setVoiceMessages([]);
           setPhase("chatting");
           toast.success("Connected with a stranger!", { duration: 2500 });
-          return;
-        }
-        if ("TimedOut" in status || "NotInQueue" in status) {
-          clearMatchPoll();
+        } else if ("TimedOut" in status || "NotInQueue" in status) {
+          clearPollIntervals();
           setPhase("idle");
           toast.error("No stranger found. Try again!", { duration: 3000 });
-          return;
         }
       } catch {
         // silent
       }
-      if (matchPollActive.current) {
-        matchPollRef.current = setTimeout(poll, 1500);
-      }
-    };
-    matchPollRef.current = setTimeout(poll, 1500);
-  }, [actor, clearMatchPoll]);
+    }, 1500);
+  }, [actor, clearPollIntervals]);
 
   const startMsgPolling = useCallback(
     (sid: bigint) => {
       if (!actor) return;
-      clearMsgPoll();
-      msgPollActive.current = true;
-
-      const poll = async () => {
-        if (!msgPollActive.current) return;
+      msgPollIntervalRef.current = setInterval(async () => {
         try {
           const [msgs, vMsgs] = await Promise.all([
             actor.getRandomMessages(sid),
@@ -198,13 +179,9 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
         } catch {
           // silent
         }
-        if (msgPollActive.current) {
-          msgPollRef.current = setTimeout(poll, 2000);
-        }
-      };
-      msgPollRef.current = setTimeout(poll, 2000);
+      }, 2000);
     },
-    [actor, clearMsgPoll],
+    [actor],
   );
 
   useEffect(() => {
@@ -240,7 +217,7 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
   };
 
   const handleCancel = async () => {
-    clearMatchPoll();
+    clearPollIntervals();
     try {
       if (actor) await actor.leaveMatchQueue();
     } catch {
@@ -272,6 +249,7 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
     setIsSending(true);
     try {
       await actor.sendRandomMessage(sessionId, text);
+      // Immediately fetch updated messages
       const msgs = await actor.getRandomMessages(sessionId);
       setMessages(
         [...msgs].sort((a: RandomMessage, b: RandomMessage) =>
@@ -309,6 +287,7 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
         hash,
         BigInt(Math.round(duration)),
       );
+      // Immediately refresh voice messages
       const vMsgs = await actor.getRandomVoiceMessages(sessionId);
       setVoiceMessages(
         [...vMsgs].sort((a: RandomVoiceMessage, b: RandomVoiceMessage) =>
@@ -331,6 +310,7 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
     }
   };
 
+  // Merge text + voice messages sorted by timestamp
   const unified: UnifiedMsg[] = [
     ...messages.map((m) => ({
       kind: "text" as const,
@@ -448,6 +428,7 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
             data-ocid="random.loading_state"
           >
             <div className="text-center space-y-6">
+              {/* Animated radar */}
               <div className="relative mx-auto w-24 h-24">
                 {[1, 2, 3].map((i) => (
                   <motion.div
@@ -485,6 +466,7 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
                 </p>
               </div>
 
+              {/* Progress bar */}
               <div className="w-48 h-1 rounded-full bg-white/10 overflow-hidden">
                 <motion.div
                   className="h-full bg-primary rounded-full"
@@ -589,6 +571,7 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
                     );
                   }
 
+                  // voice message
                   const vMsg = item.msg as RandomVoiceMessage;
                   const isOwn = vMsg.senderAnonId === myAnonId;
                   return (
