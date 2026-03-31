@@ -618,7 +618,6 @@ function FakeBuyFlowSheet({ open, onClose, listing }: FakeBuyFlowSheetProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const imagePreviewRef = useRef<string | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset fires only when modal opens
   useEffect(() => {
     if (open) {
       setStep(1);
@@ -1147,7 +1146,6 @@ function RealBuyFlowSheet({
   const [loading, setLoading] = useState(false);
   const imagePreviewRef = useRef<string | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset fires only when modal opens
   useEffect(() => {
     if (open) {
       if (existingTrade) {
