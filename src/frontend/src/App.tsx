@@ -6,6 +6,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeftRight,
+  Bell,
+  BellRing,
   Check,
   Coins,
   Compass,
@@ -26,12 +28,14 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { User as UserType } from "./backend";
 import { ChatView } from "./components/ChatView";
 import { DiscoverTab } from "./components/DiscoverTab";
 import { EarnTab } from "./components/EarnTab";
+import { NotificationBanner } from "./components/NotificationBanner";
+import { NotificationDrawer } from "./components/NotificationDrawer";
 import { P2PMarket } from "./components/P2PMarket";
 import { PremiumModal } from "./components/PremiumModal";
 import { QRCodeModal } from "./components/QRCodeModal";
@@ -39,6 +43,8 @@ import { QRScannerModal } from "./components/QRScannerModal";
 import { RandomChat } from "./components/RandomChat";
 import { useActor } from "./hooks/useActor";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
+import type { AppNotification } from "./hooks/useNotifications";
+import { useNotifications } from "./hooks/useNotifications";
 import {
   useGetMe,
   useRegister,
@@ -493,6 +499,84 @@ export default function App() {
 
   const { data: unreadCount = 0 } = useUnreadCount(me?.anonymousId ?? "");
 
+  // Notification system
+  const {
+    notifications,
+    unreadNotifCount,
+    addNotification,
+    markAllRead,
+    markRead,
+    clearAll,
+    soundEnabled,
+    toggleSound,
+  } = useNotifications();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [bannerNotif, setBannerNotif] = useState<AppNotification | null>(null);
+  const bannerQueueRef = useRef<AppNotification[]>([]);
+  const bannerActiveRef = useRef(false);
+
+  // Real message detection: fire notification when unread count increases
+  const prevUnreadRef = useRef(0);
+  useEffect(() => {
+    if (unreadCount > prevUnreadRef.current && me) {
+      addNotification("message", "Yeni Mesaj", "Okunmamış mesajınız var");
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount, me, addNotification]);
+
+  // Queue-based banner display: show one at a time
+  const showNextBanner = useCallback(() => {
+    if (bannerQueueRef.current.length === 0) {
+      bannerActiveRef.current = false;
+      return;
+    }
+    const next = bannerQueueRef.current.shift()!;
+    bannerActiveRef.current = true;
+    setBannerNotif(next);
+  }, []);
+
+  // Watch for new unread notifications and add to banner queue
+  const prevNotifCountRef = useRef(0);
+  useEffect(() => {
+    const newUnread = notifications.filter((n) => !n.read);
+    if (newUnread.length > prevNotifCountRef.current) {
+      const added = newUnread.slice(
+        0,
+        newUnread.length - prevNotifCountRef.current,
+      );
+      for (const n of added) {
+        bannerQueueRef.current.push(n);
+      }
+      if (!bannerActiveRef.current) {
+        showNextBanner();
+      }
+    }
+    prevNotifCountRef.current = newUnread.length;
+  }, [notifications, showNextBanner]);
+
+  const handleBannerDismiss = useCallback(() => {
+    setBannerNotif(null);
+    setTimeout(() => {
+      showNextBanner();
+    }, 500);
+  }, [showNextBanner]);
+
+  // Banner tap → switch to chat tab for message notifications
+  const handleBannerTap = useCallback(
+    (notification: AppNotification) => {
+      if (notification.type === "message") {
+        handleTabChange("chat");
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const handleBellClick = () => {
+    setDrawerOpen(true);
+    markAllRead();
+  };
+
   const isLoggedIn = !!identity;
 
   // Loading: during auth init, active registration, or actor loading after login
@@ -619,12 +703,33 @@ export default function App() {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {isLoggedIn && me && (
               <span className="text-xs text-muted-foreground font-mono hidden sm:block">
                 {me.anonymousId}
               </span>
             )}
+
+            {/* Bell icon */}
+            <button
+              type="button"
+              onClick={handleBellClick}
+              data-ocid="nav.button"
+              aria-label="Bildirimleri aç"
+              className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+            >
+              {unreadNotifCount > 0 ? (
+                <BellRing className="w-4 h-4 animate-bounce duration-1000" />
+              ) : (
+                <Bell className="w-4 h-4" />
+              )}
+              {unreadNotifCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1">
+                  {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                </span>
+              )}
+            </button>
+
             {isLoggedIn ? (
               <Button
                 variant="ghost"
@@ -652,6 +757,24 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Notification banner — slides in from top */}
+      <NotificationBanner
+        notification={bannerNotif}
+        onDismiss={handleBannerDismiss}
+        onTap={handleBannerTap}
+      />
+
+      {/* Notification drawer */}
+      <NotificationDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        notifications={notifications}
+        onClearAll={clearAll}
+        onMarkRead={markRead}
+        soundEnabled={soundEnabled}
+        onToggleSound={toggleSound}
+      />
 
       {/* Main content */}
       <main
