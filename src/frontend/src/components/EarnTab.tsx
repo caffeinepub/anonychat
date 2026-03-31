@@ -20,6 +20,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { PendingReward, ReferralStats } from "../backend.d";
+import { useNotifications } from "../context/NotificationContext";
 import { useActor } from "../hooks/useActor";
 
 function formatCountdown(claimableAt: bigint): string {
@@ -49,6 +50,8 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
   const queryClient = useQueryClient();
   const [referralInput, setReferralInput] = useState("");
   const [copied, setCopied] = useState(false);
+  const { addNotification } = useNotifications();
+  const [claimingId, setClaimingId] = useState<bigint | null>(null);
 
   const isReady = !!actor && !actorFetching;
 
@@ -111,6 +114,11 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
       queryClient.invalidateQueries({ queryKey: ["pendingRewards"] });
       queryClient.invalidateQueries({ queryKey: ["referralStats"] });
       toast.success("Ödül talep edildi! AnonCash bakiyene eklendi.");
+      addNotification({
+        type: "system",
+        title: "AnonCash",
+        body: "Ödül başarıyla alındı! Bakiyene eklendi.",
+      });
     },
     onError: () => {
       toast.error("Ödül talep edilemedi.");
@@ -419,12 +427,17 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
                     </span>
                     <Button
                       size="sm"
-                      onClick={() => claimMutation.mutate(reward.id)}
-                      disabled={claimMutation.isPending}
+                      onClick={() => {
+                        setClaimingId(reward.id);
+                        claimMutation.mutate(reward.id, {
+                          onSettled: () => setClaimingId(null),
+                        });
+                      }}
+                      disabled={claimingId === reward.id}
                       data-ocid={`earn.primary_button.${idx + 1}`}
                       className="h-7 px-3 text-xs bg-emerald-600/80 hover:bg-emerald-600 text-white border-none"
                     >
-                      {claimMutation.isPending ? (
+                      {claimingId === reward.id ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
                         "Talep Et"

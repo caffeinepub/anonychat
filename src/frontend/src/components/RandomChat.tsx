@@ -73,19 +73,17 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [isSendingVoice, setIsSendingVoice] = useState(false);
 
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
-  const msgPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null,
-  );
+  const msgPollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const clearPollIntervals = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
     }
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
@@ -94,9 +92,9 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
   }, []);
 
   const clearMsgPoll = useCallback(() => {
-    if (msgPollIntervalRef.current) {
-      clearInterval(msgPollIntervalRef.current);
-      msgPollIntervalRef.current = null;
+    if (msgPollTimeoutRef.current) {
+      clearTimeout(msgPollTimeoutRef.current);
+      msgPollTimeoutRef.current = null;
     }
   }, []);
 
@@ -134,8 +132,8 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
       });
     }, 1000);
 
-    // Status poll
-    pollIntervalRef.current = setInterval(async () => {
+    // Status poll (recursive setTimeout avoids overlap on slow network)
+    const pollMatch = async () => {
       try {
         const status: MatchStatus = await actor.checkMatchStatus();
         if ("Matched" in status) {
@@ -146,21 +144,26 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
           setVoiceMessages([]);
           setPhase("chatting");
           toast.success("Connected with a stranger!", { duration: 2500 });
-        } else if ("TimedOut" in status || "NotInQueue" in status) {
+          return; // stop polling
+        }
+        if ("TimedOut" in status || "NotInQueue" in status) {
           clearPollIntervals();
           setPhase("idle");
           toast.error("No stranger found. Try again!", { duration: 3000 });
+          return; // stop polling
         }
       } catch {
         // silent
       }
-    }, 1500);
+      pollTimeoutRef.current = setTimeout(pollMatch, 1500);
+    };
+    pollTimeoutRef.current = setTimeout(pollMatch, 1500);
   }, [actor, clearPollIntervals]);
 
   const startMsgPolling = useCallback(
     (sid: bigint) => {
       if (!actor) return;
-      msgPollIntervalRef.current = setInterval(async () => {
+      const pollMsgs = async () => {
         try {
           const [msgs, vMsgs] = await Promise.all([
             actor.getRandomMessages(sid),
@@ -179,7 +182,9 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
         } catch {
           // silent
         }
-      }, 2000);
+        msgPollTimeoutRef.current = setTimeout(pollMsgs, 2000);
+      };
+      pollMsgs();
     },
     [actor],
   );

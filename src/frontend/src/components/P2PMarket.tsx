@@ -52,6 +52,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { P2PListing, P2PTrade } from "../backend.d";
+import { useNotifications } from "../context/NotificationContext";
 import { useActor } from "../hooks/useActor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -81,7 +82,8 @@ interface FakeListing {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ADMIN_IBAN = "DE02 1001 0010 0987 6543 21";
+const ADMIN_IBAN = "LT913130010131376235";
+const BASE_TIME = Date.now(); // stable session base for drop countdowns
 
 const FAKE_LISTINGS: FakeListing[] = [
   {
@@ -179,7 +181,7 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 5.0,
     tradeCount: 199,
     tags: ["Official", "Locked"],
-    nextDropMs: Date.now() + 3_600_000,
+    nextDropMs: BASE_TIME + 3_600_000,
   },
   {
     id: "fake-9",
@@ -192,7 +194,7 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 5.0,
     tradeCount: 199,
     tags: ["Official", "Locked"],
-    nextDropMs: Date.now() + 7_200_000,
+    nextDropMs: BASE_TIME + 7_200_000,
   },
   {
     id: "fake-10",
@@ -205,7 +207,7 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 5.0,
     tradeCount: 199,
     tags: ["Official", "Locked"],
-    nextDropMs: Date.now() + 10_800_000,
+    nextDropMs: BASE_TIME + 10_800_000,
   },
   {
     id: "fake-11",
@@ -305,16 +307,20 @@ function genRefCode(): string {
 function ActivityFeed() {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
+  const innerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setVisible(false);
-      setTimeout(() => {
+      innerTimeoutRef.current = setTimeout(() => {
         setIdx((prev) => (prev + 1) % ACTIVITY_MESSAGES.length);
         setVisible(true);
       }, 300);
     }, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (innerTimeoutRef.current) clearTimeout(innerTimeoutRef.current);
+    };
   }, []);
 
   return (
@@ -1135,6 +1141,7 @@ function RealBuyFlowSheet({
   onSuccess,
 }: RealBuyFlowSheetProps) {
   const { actor } = useActor();
+  const { addNotification } = useNotifications();
   const [step, setStep] = useState<RealBuyStep>(existingTrade ? 3 : 1);
   const [currentTrade, setCurrentTrade] = useState<P2PTrade | null>(
     existingTrade,
@@ -1215,6 +1222,11 @@ function RealBuyFlowSheet({
       setStep(5);
       onSuccess();
       toast.success("Payment proof submitted!");
+      addNotification({
+        type: "p2p_trade",
+        title: "Ödeme Gönderildi",
+        body: "Ödeme kanıtınız satıcıya iletildi. Onay bekleniyor.",
+      });
     } catch {
       toast.error("Failed to submit proof. Please try again.");
     } finally {
@@ -1825,11 +1837,18 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
     }
   };
 
+  const { addNotification } = useNotifications();
+
   const handleConfirmTrade = async (id: bigint) => {
     if (!actor) return;
     try {
       await (actor as any).confirmTrade(id);
       toast.success("Trade confirmed! ID transfer initiated.");
+      addNotification({
+        type: "p2p_trade",
+        title: "İşlem Onaylandı",
+        body: "ID transferi başlatıldı. Tebrikler!",
+      });
       fetchTrades();
     } catch {
       toast.error("Failed to confirm trade");
@@ -2057,8 +2076,19 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                   <Button
                     className="w-full h-10 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                     onClick={() => {
-                      setSelectedListing(listing);
-                      setRealBuyOpen(true);
+                      const existingPending = trades.find(
+                        (t) =>
+                          t.listingId === listing.id &&
+                          (t.status.__kind__ === "Pending" ||
+                            t.status.__kind__ === "PaymentSent"),
+                      );
+                      if (existingPending) {
+                        setProofTrade(existingPending);
+                        setProofOpen(true);
+                      } else {
+                        setSelectedListing(listing);
+                        setRealBuyOpen(true);
+                      }
                     }}
                     disabled={listing.status.__kind__ === "Locked"}
                     data-ocid="p2p.primary_button"
@@ -2463,7 +2493,16 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
           setSelectedListing(null);
         }}
         listing={selectedListing}
-        existingTrade={null}
+        existingTrade={
+          selectedListing
+            ? (trades.find(
+                (t) =>
+                  t.listingId === selectedListing.id &&
+                  (t.status.__kind__ === "Pending" ||
+                    t.status.__kind__ === "PaymentSent"),
+              ) ?? null)
+            : null
+        }
         onSuccess={onBuySuccess}
       />
 

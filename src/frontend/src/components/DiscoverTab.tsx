@@ -47,6 +47,73 @@ function formatDistance(km: number): string {
   return `${Math.round(km)}km`;
 }
 
+// UserRow is defined at module scope to prevent remounting on every DiscoverTab re-render
+interface UserRowItem {
+  anonymousId: string;
+  isOnline: boolean;
+  username?: string | null;
+  distance: number | null;
+  lat?: number | null;
+  lon?: number | null;
+}
+
+function UserRow({
+  user,
+  idx,
+  showDist,
+  onStartChat,
+}: {
+  user: UserRowItem;
+  idx: number;
+  showDist: boolean;
+  onStartChat: (anonId: string) => void;
+}) {
+  return (
+    <motion.div
+      key={user.anonymousId}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: idx * 0.04 }}
+      className="flex items-center gap-3 p-3 rounded-xl bg-[oklch(0.13_0_0)] border border-white/5 hover:border-white/10 transition-colors cursor-pointer active:bg-white/5"
+      onClick={() => onStartChat(user.anonymousId)}
+      data-ocid={`discover.item.${idx + 1}`}
+    >
+      <StatusDot online={user.isOnline} />
+      <div className="flex-1 min-w-0">
+        <div className="font-mono text-xs text-primary truncate">
+          {user.anonymousId}
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {user.username && (
+            <span className="text-xs text-muted-foreground truncate">
+              {user.username}
+            </span>
+          )}
+          {showDist && user.distance !== null && (
+            <span className="text-[10px] text-[oklch(0.72_0.2_145)] flex items-center gap-0.5">
+              <MapPin className="w-2.5 h-2.5" />
+              {formatDistance(user.distance)}
+            </span>
+          )}
+        </div>
+      </div>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={(e) => {
+          e.stopPropagation();
+          onStartChat(user.anonymousId);
+        }}
+        className="h-7 px-2.5 text-xs text-primary hover:bg-primary/10 flex-shrink-0 gap-1"
+        data-ocid="discover.button"
+      >
+        <MessageSquare className="w-3 h-3" />
+        Chat
+      </Button>
+    </motion.div>
+  );
+}
+
 export function DiscoverTab({
   myAnonId,
   onStartChat,
@@ -128,57 +195,6 @@ export function DiscoverTab({
     .sort((a, b) => (b.isOnline ? 1 : 0) - (a.isOnline ? 1 : 0));
 
   const onlineCount = filtered.filter((u) => u.isOnline).length;
-
-  function UserRow({
-    user,
-    idx,
-    showDist,
-  }: { user: (typeof withDistance)[0]; idx: number; showDist: boolean }) {
-    return (
-      <motion.div
-        key={user.anonymousId}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: idx * 0.04 }}
-        className="flex items-center gap-3 p-3 rounded-xl bg-[oklch(0.13_0_0)] border border-white/5 hover:border-white/10 transition-colors cursor-pointer active:bg-white/5"
-        onClick={() => onStartChat(user.anonymousId)}
-        data-ocid={`discover.item.${idx + 1}`}
-      >
-        <StatusDot online={user.isOnline} />
-        <div className="flex-1 min-w-0">
-          <div className="font-mono text-xs text-primary truncate">
-            {user.anonymousId}
-          </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            {user.username && (
-              <span className="text-xs text-muted-foreground truncate">
-                {user.username}
-              </span>
-            )}
-            {showDist && user.distance !== null && (
-              <span className="text-[10px] text-[oklch(0.72_0.2_145)] flex items-center gap-0.5">
-                <MapPin className="w-2.5 h-2.5" />
-                {formatDistance(user.distance)}
-              </span>
-            )}
-          </div>
-        </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            onStartChat(user.anonymousId);
-          }}
-          className="h-7 px-2.5 text-xs text-primary hover:bg-primary/10 flex-shrink-0 gap-1"
-          data-ocid="discover.button"
-        >
-          <MessageSquare className="w-3 h-3" />
-          Chat
-        </Button>
-      </motion.div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full max-w-md mx-auto w-full">
@@ -279,6 +295,7 @@ export function DiscoverTab({
                     user={user}
                     idx={idx}
                     showDist={true}
+                    onStartChat={onStartChat}
                   />
                 ))}
                 {others.length > 0 && (
@@ -297,6 +314,7 @@ export function DiscoverTab({
                 user={user}
                 idx={idx + nearby.length}
                 showDist={false}
+                onStartChat={onStartChat}
               />
             ))}
           </>

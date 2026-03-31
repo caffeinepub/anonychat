@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import type { UserProfile } from "../backend";
 import type { VoiceMessage } from "../backend.d";
 import { loadConfig } from "../config";
+import { useNotifications } from "../context/NotificationContext";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
@@ -374,6 +375,8 @@ function ChatWindow({
   const scrollRef = useRef<HTMLDivElement>(null);
   const { identity } = useInternetIdentity();
 
+  const { addNotification } = useNotifications();
+  const prevMsgCountRef = useRef(0);
   const { data: messages = [] } = useGetConversation(contactAnonId);
   const { data: voiceMessages = [] } = useGetVoiceMessages(contactAnonId);
   const { data: blockedUsers = [] } = useGetBlockedUsers();
@@ -383,6 +386,24 @@ function ChatWindow({
   const unblockUser = useUnblockUser();
 
   const isBlocked = blockedUsers.includes(contactAnonId);
+
+  // Notify on new incoming messages
+  useEffect(() => {
+    if (messages.length > prevMsgCountRef.current) {
+      const newest = messages[messages.length - 1];
+      if (newest && newest.senderId !== myAnonId) {
+        addNotification({
+          type: "message",
+          title: `Yeni mesaj: ${contactAnonId}`,
+          body:
+            newest.content.length > 60
+              ? `${newest.content.slice(0, 60)}…`
+              : newest.content,
+        });
+      }
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages, myAnonId, contactAnonId, addNotification]);
 
   // Merge text + voice messages, sort by timestamp
   const unified: UnifiedMessage[] = [
@@ -780,7 +801,12 @@ function ContactRow({
 export function ChatView({
   myAnonId,
   initialContact,
-}: { myAnonId: string; initialContact?: string }) {
+  onActiveContactChange,
+}: {
+  myAnonId: string;
+  initialContact?: string;
+  onActiveContactChange?: (anonId: string | null) => void;
+}) {
   const [contacts, setContacts] = useState<string[]>(() => loadContacts());
   const [activeContact, setActiveContact] = useState<string | null>(null);
   const [activeProfile, setActiveProfile] = useState<UserProfile | null>(null);
@@ -814,21 +840,36 @@ export function ChatView({
     setActiveProfile(profile);
     setSearchId("");
     setSearchResult(undefined);
+    if (onActiveContactChange) onActiveContactChange(anonId);
   };
 
   const handleSelectContact = (anonId: string) => {
     setActiveContact(anonId);
-    setActiveProfile(null);
+    setActiveProfile(null); // will be updated by useEffect below
+    if (onActiveContactChange) onActiveContactChange(anonId);
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: onActiveContactChange is stable
   useEffect(() => {
     if (initialContact) {
       addContact(initialContact);
       setContacts(loadContacts());
       setActiveContact(initialContact);
       setActiveProfile(null);
+      if (onActiveContactChange) onActiveContactChange(initialContact);
     }
-  }, [initialContact]);
+  }, [initialContact]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load profile when activeContact changes
+  useEffect(() => {
+    if (!activeContact || !actor) return;
+    (actor as any)
+      .findUserByAnonId(activeContact)
+      .then((profile: any) => {
+        if (profile) setActiveProfile(profile);
+      })
+      .catch(() => {});
+  }, [activeContact, actor]);
 
   const showMobileChat = activeContact !== null;
 

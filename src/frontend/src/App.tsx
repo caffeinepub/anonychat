@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeftRight,
+  Bell,
   Check,
   Coins,
   Compass,
@@ -32,11 +33,17 @@ import type { User as UserType } from "./backend";
 import { ChatView } from "./components/ChatView";
 import { DiscoverTab } from "./components/DiscoverTab";
 import { EarnTab } from "./components/EarnTab";
+import { NotificationBanner } from "./components/NotificationBanner";
+import { NotificationBell } from "./components/NotificationBell";
 import { P2PMarket } from "./components/P2PMarket";
 import { PremiumModal } from "./components/PremiumModal";
 import { QRCodeModal } from "./components/QRCodeModal";
 import { QRScannerModal } from "./components/QRScannerModal";
 import { RandomChat } from "./components/RandomChat";
+import {
+  NotificationProvider,
+  useNotifications,
+} from "./context/NotificationContext";
 import { useActor } from "./hooks/useActor";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import {
@@ -389,7 +396,38 @@ function ProfileTab({
           Member since {formatDate(user.createdAt)}
         </p>
       </div>
+
+      {/* Notifications settings */}
+      <NotificationsSettings />
     </motion.div>
+  );
+}
+
+function NotificationsSettings() {
+  const { enabled, setEnabled } = useNotifications();
+  return (
+    <div
+      className="glass-card rounded-2xl p-4 w-full"
+      data-ocid="notifications.card"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="w-4 h-4 text-primary" />
+          <div>
+            <p className="text-sm font-medium">Bildirimler</p>
+            <p className="text-xs text-muted-foreground">
+              Uygulama içi bildirimleri
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={enabled}
+          onCheckedChange={setEnabled}
+          data-ocid="notifications.switch"
+          className="data-[state=checked]:bg-[oklch(0.72_0.2_145)]"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -539,7 +577,8 @@ export default function App() {
       !actorFetching &&
       me == null &&
       !isRegistering &&
-      actor != null
+      actor != null &&
+      !register.isPending
     ) {
       doRegister();
     }
@@ -551,17 +590,21 @@ export default function App() {
     isRegistering,
     actor,
     doRegister,
+    register.isPending,
   ]);
 
-  // Mark messages as read when switching to chat tab
+  // Track which contact is active (for read-marking on tab switch)
+  const [chatActiveContact, setChatActiveContact] = useState<string | null>(
+    null,
+  );
+
+  // Mark messages as read when switching to chat tab (only the active contact)
   const handleTabChange = (tab: AppTab) => {
-    if (tab === "chat") {
-      const contacts: string[] = JSON.parse(
-        localStorage.getItem("anonychat_contacts") ?? "[]",
+    if (tab === "chat" && chatActiveContact) {
+      localStorage.setItem(
+        `anonychat_read_${chatActiveContact}`,
+        String(Date.now()),
       );
-      for (const contact of contacts) {
-        localStorage.setItem(`anonychat_read_${contact}`, String(Date.now()));
-      }
     }
     setActiveTab(tab);
   };
@@ -603,274 +646,281 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-white/5 px-4 py-3 flex-shrink-0 z-40">
-        <div className="max-w-screen-xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
-            <span className="font-semibold tracking-tight">
-              Anon<span className="text-primary">Chat</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {isLoggedIn && me && (
-              <span className="text-xs text-muted-foreground font-mono hidden sm:block">
-                {me.anonymousId}
+    <NotificationProvider>
+      <NotificationBanner />
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Header */}
+        <header className="border-b border-white/5 px-4 py-3 flex-shrink-0 z-40">
+          <div className="max-w-screen-xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
+              <span className="font-semibold tracking-tight">
+                Anon<span className="text-primary">Chat</span>
               </span>
-            )}
-            {isLoggedIn ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clear}
-                data-ocid="nav.button"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="w-3.5 h-3.5 mr-1.5" />
-                oturumu Kapat
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={login}
-                disabled={loginStatus === "logging-in"}
-                data-ocid="nav.button"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogIn className="w-3.5 h-3.5 mr-1.5" />
-                Giriş Yap
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+            </div>
 
-      {/* Main content */}
-      <main
-        className="flex-1 overflow-hidden"
-        style={{
-          paddingBottom: me
-            ? "calc(56px + env(safe-area-inset-bottom, 0px))"
-            : 0,
-        }}
-      >
-        {isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
-            <div
-              className="text-center space-y-4"
-              data-ocid="app.loading_state"
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Number.POSITIVE_INFINITY,
-                  ease: "linear",
-                }}
-                className="mx-auto w-10 h-10 rounded-full border-2 border-primary/30 border-t-primary"
-              />
-              <p className="text-sm text-muted-foreground">
-                {isRegistering ? "Kimliğin oluşturuluyor..." : "Yükleniyor..."}
-              </p>
+            <div className="flex items-center gap-3">
+              {isLoggedIn && me && (
+                <span className="text-xs text-muted-foreground font-mono hidden sm:block">
+                  {me.anonymousId}
+                </span>
+              )}
+              {isLoggedIn && me && <NotificationBell />}
+              {isLoggedIn ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clear}
+                  data-ocid="nav.button"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <LogOut className="w-3.5 h-3.5 mr-1.5" />
+                  oturumu Kapat
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={login}
+                  disabled={loginStatus === "logging-in"}
+                  data-ocid="nav.button"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <LogIn className="w-3.5 h-3.5 mr-1.5" />
+                  Giriş Yap
+                </Button>
+              )}
             </div>
           </div>
-        ) : !me ? (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] py-12">
-            <LandingPage
-              onGenerate={handleGenerate}
-              loading={
-                isRegistering ||
-                loginStatus === "logging-in" ||
-                (isLoggedIn && actorFetching)
-              }
-            />
-          </div>
-        ) : (
-          <AnimatePresence>
-            {activeTab === "chat" && (
-              <motion.div
-                key="chat"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="h-full"
-                style={{
-                  height:
-                    "calc(100dvh - 57px - 56px - env(safe-area-inset-bottom, 0px))",
-                }}
-              >
-                <ChatView
-                  myAnonId={me.anonymousId}
-                  initialContact={initialContact}
-                />
-              </motion.div>
-            )}
-            {activeTab === "random" && (
-              <motion.div
-                key="random"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                style={{
-                  height:
-                    "calc(100dvh - 57px - 56px - env(safe-area-inset-bottom, 0px))",
-                }}
-              >
-                <RandomChat myAnonId={me.anonymousId} />
-              </motion.div>
-            )}
-            {activeTab === "discover" && (
-              <motion.div
-                key="discover"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="h-full overflow-y-auto"
-              >
-                <DiscoverTab
-                  myAnonId={me.anonymousId}
-                  onStartChat={(id) => {
-                    setInitialContact(id);
-                    setActiveTab("chat");
-                  }}
-                />
-              </motion.div>
-            )}
-            {activeTab === "p2p" && (
-              <motion.div
-                key="p2p"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="h-full overflow-y-auto"
-              >
-                <P2PMarket myAnonId={me.anonymousId} />
-              </motion.div>
-            )}
-            {activeTab === "earn" && (
-              <motion.div
-                key="earn"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="h-full overflow-y-auto"
-              >
-                <EarnTab myAnonId={me.anonymousId} />
-              </motion.div>
-            )}
-            {activeTab === "profile" && (
-              <motion.div
-                key="profile"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="h-full overflow-y-auto"
-              >
-                <ProfileTab
-                  user={me}
-                  onStartChat={(id) => {
-                    setInitialContact(id);
-                    setActiveTab("chat");
-                  }}
-                />
-                {/* Footer inside profile */}
-                <footer className="py-6 px-4">
-                  <p className="text-center text-xs text-muted-foreground">
-                    © {year}. Built with ❤️ using{" "}
-                    <a
-                      href={caffeineUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary/70 hover:text-primary transition-colors"
-                    >
-                      caffeine.ai
-                    </a>
-                  </p>
-                </footer>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
-      </main>
+        </header>
 
-      {/* Bottom Navigation */}
-      {me && (
-        <nav
-          className="fixed bottom-0 left-0 right-0 z-50 bg-[oklch(0.09_0_0)] border-t border-white/5"
-          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
-          data-ocid="nav.panel"
+        {/* Main content */}
+        <main
+          className="flex-1 overflow-hidden"
+          style={{
+            paddingBottom: me
+              ? "calc(56px + env(safe-area-inset-bottom, 0px))"
+              : 0,
+          }}
         >
-          <div className="max-w-lg mx-auto flex h-14">
-            {NAV_ITEMS.map((item) => {
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleTabChange(item.id)}
-                  data-ocid="nav.tab"
-                  className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
-                    isActive
-                      ? "text-primary"
-                      : "text-muted-foreground hover:text-foreground/70"
-                  }`}
+          {isLoading ? (
+            <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
+              <div
+                className="text-center space-y-4"
+                data-ocid="app.loading_state"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "linear",
+                  }}
+                  className="mx-auto w-10 h-10 rounded-full border-2 border-primary/30 border-t-primary"
+                />
+                <p className="text-sm text-muted-foreground">
+                  {isRegistering
+                    ? "Kimliğin oluşturuluyor..."
+                    : "Yükleniyor..."}
+                </p>
+              </div>
+            </div>
+          ) : !me ? (
+            <div className="flex flex-col items-center justify-center min-h-[70vh] py-12">
+              <LandingPage
+                onGenerate={handleGenerate}
+                loading={
+                  isRegistering ||
+                  loginStatus === "logging-in" ||
+                  (isLoggedIn && actorFetching)
+                }
+              />
+            </div>
+          ) : (
+            <AnimatePresence>
+              {activeTab === "chat" && (
+                <motion.div
+                  key="chat"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="h-full"
+                  style={{
+                    height:
+                      "calc(100dvh - 57px - 56px - env(safe-area-inset-bottom, 0px))",
+                  }}
                 >
-                  <span
-                    className={`relative transition-transform ${
-                      isActive ? "scale-110" : "scale-100"
+                  <ChatView
+                    myAnonId={me.anonymousId}
+                    initialContact={initialContact}
+                    onActiveContactChange={setChatActiveContact}
+                  />
+                </motion.div>
+              )}
+              {activeTab === "random" && (
+                <motion.div
+                  key="random"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  style={{
+                    height:
+                      "calc(100dvh - 57px - 56px - env(safe-area-inset-bottom, 0px))",
+                  }}
+                >
+                  <RandomChat myAnonId={me.anonymousId} />
+                </motion.div>
+              )}
+              {activeTab === "discover" && (
+                <motion.div
+                  key="discover"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full overflow-y-auto"
+                >
+                  <DiscoverTab
+                    myAnonId={me.anonymousId}
+                    onStartChat={(id) => {
+                      setInitialContact(id);
+                      setActiveTab("chat");
+                    }}
+                  />
+                </motion.div>
+              )}
+              {activeTab === "p2p" && (
+                <motion.div
+                  key="p2p"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full overflow-y-auto"
+                >
+                  <P2PMarket myAnonId={me.anonymousId} />
+                </motion.div>
+              )}
+              {activeTab === "earn" && (
+                <motion.div
+                  key="earn"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full overflow-y-auto"
+                >
+                  <EarnTab myAnonId={me.anonymousId} />
+                </motion.div>
+              )}
+              {activeTab === "profile" && (
+                <motion.div
+                  key="profile"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full overflow-y-auto"
+                >
+                  <ProfileTab
+                    user={me}
+                    onStartChat={(id) => {
+                      setInitialContact(id);
+                      setActiveTab("chat");
+                    }}
+                  />
+                  {/* Footer inside profile */}
+                  <footer className="py-6 px-4">
+                    <p className="text-center text-xs text-muted-foreground">
+                      © {year}. Built with ❤️ using{" "}
+                      <a
+                        href={caffeineUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary/70 hover:text-primary transition-colors"
+                      >
+                        caffeine.ai
+                      </a>
+                    </p>
+                  </footer>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+        </main>
+
+        {/* Bottom Navigation */}
+        {me && (
+          <nav
+            className="fixed bottom-0 left-0 right-0 z-50 bg-[oklch(0.09_0_0)] border-t border-white/5"
+            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
+            data-ocid="nav.panel"
+          >
+            <div className="max-w-lg mx-auto flex h-14">
+              {NAV_ITEMS.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleTabChange(item.id)}
+                    data-ocid="nav.tab"
+                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground/70"
                     }`}
                   >
-                    {item.icon}
-                    {item.badge !== undefined && (
-                      <UnreadBadge count={item.badge} />
+                    <span
+                      className={`relative transition-transform ${
+                        isActive ? "scale-110" : "scale-100"
+                      }`}
+                    >
+                      {item.icon}
+                      {item.badge !== undefined && (
+                        <UnreadBadge count={item.badge} />
+                      )}
+                    </span>
+                    <span className="text-[10px] font-medium tracking-wide">
+                      {item.label}
+                    </span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="nav-indicator"
+                        className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full"
+                        style={{
+                          bottom: "max(env(safe-area-inset-bottom), 8px)",
+                        }}
+                      />
                     )}
-                  </span>
-                  <span className="text-[10px] font-medium tracking-wide">
-                    {item.label}
-                  </span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="nav-indicator"
-                      className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full"
-                      style={{
-                        bottom: "max(env(safe-area-inset-bottom), 8px)",
-                      }}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-      )}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        )}
 
-      {/* Footer for non-logged-in state */}
-      {!me && !isLoading && (
-        <footer className="border-t border-white/5 py-6 px-4 flex-shrink-0">
-          <p className="text-center text-xs text-muted-foreground">
-            © {year}. Built with ❤️ using{" "}
-            <a
-              href={caffeineUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary/70 hover:text-primary transition-colors"
-            >
-              caffeine.ai
-            </a>
-          </p>
-        </footer>
-      )}
+        {/* Footer for non-logged-in state */}
+        {!me && !isLoading && (
+          <footer className="border-t border-white/5 py-6 px-4 flex-shrink-0">
+            <p className="text-center text-xs text-muted-foreground">
+              © {year}. Built with ❤️ using{" "}
+              <a
+                href={caffeineUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary/70 hover:text-primary transition-colors"
+              >
+                caffeine.ai
+              </a>
+            </p>
+          </footer>
+        )}
 
-      <Toaster position="bottom-center" theme="dark" />
-    </div>
+        <Toaster position="bottom-center" theme="dark" />
+      </div>
+    </NotificationProvider>
   );
 }
