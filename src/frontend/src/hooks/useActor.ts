@@ -15,7 +15,6 @@ export function useActor() {
       const isAuthenticated = !!identity;
 
       if (!isAuthenticated) {
-        // Return anonymous actor if not authenticated
         return await createActorWithConfig();
       }
 
@@ -26,14 +25,21 @@ export function useActor() {
       };
 
       const actor = await createActorWithConfig(actorOptions);
-      const adminToken = getSecretParameter("caffeineAdminToken") || "";
-      await actor._initializeAccessControlWithSecret(adminToken);
+
+      // Silently ignore admin-only errors for regular users
+      try {
+        const adminToken = getSecretParameter("caffeineAdminToken") || "";
+        await actor._initializeAccessControlWithSecret(adminToken);
+      } catch {
+        // Normal for non-admin users — ignore
+      }
+
       return actor;
     },
-    // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
-    // This will cause the actor to be recreated when the identity changes
     enabled: true,
+    retry: 3,
+    retryDelay: 1000,
   });
 
   // When the actor changes, invalidate dependent queries
@@ -55,5 +61,7 @@ export function useActor() {
   return {
     actor: actorQuery.data || null,
     isFetching: actorQuery.isFetching,
+    isError: actorQuery.isError,
+    refetch: actorQuery.refetch,
   };
 }
