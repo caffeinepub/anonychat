@@ -26,7 +26,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { User as UserType } from "./backend";
 import { ChatView } from "./components/ChatView";
@@ -495,11 +495,27 @@ export default function App() {
 
   const isLoggedIn = !!identity;
 
-  // Loading: during auth init, active registration, or actor loading after login
+  // Detect if loading is stuck — after 8s force show the landing page
+  const [loadingStuck, setLoadingStuck] = useState(false);
+  const loadingStuckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const isLoading =
-    isInitializing ||
-    isRegistering ||
-    (isLoggedIn && actorFetching && me == null);
+    !loadingStuck &&
+    (isInitializing ||
+      isRegistering ||
+      (isLoggedIn && actorFetching && me == null));
+
+  useEffect(() => {
+    if (isLoading) {
+      loadingStuckTimer.current = setTimeout(() => setLoadingStuck(true), 8000);
+    } else {
+      if (loadingStuckTimer.current) clearTimeout(loadingStuckTimer.current);
+      setLoadingStuck(false);
+    }
+    return () => {
+      if (loadingStuckTimer.current) clearTimeout(loadingStuckTimer.current);
+    };
+  }, [isLoading]);
 
   const handleGenerate = async () => {
     if (!isLoggedIn) {
