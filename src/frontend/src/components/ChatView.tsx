@@ -58,6 +58,8 @@ import { VoiceMessagePlayer } from "./VoiceMessagePlayer";
 import { VoiceRecorder } from "./VoiceRecorder";
 
 const CONTACTS_KEY = "anonychat_contacts";
+const CAPSULE_MESSAGES_KEY = "capsule_messages";
+const ONETIME_VIEWED_KEY = "onetime_viewed";
 
 const COMMON_EMOJIS = [
   "😀",
@@ -103,6 +105,14 @@ const COMMON_EMOJIS = [
 ];
 
 type GhostTimer = 10 | 30 | 60;
+type CapsuleDelay = "1h" | "24h" | "7d" | "custom";
+
+const CAPSULE_DELAY_MAP: Record<CapsuleDelay, { label: string; ms: number }> = {
+  "1h": { label: "1 Saat", ms: 60 * 60 * 1000 },
+  "24h": { label: "24 Saat", ms: 24 * 60 * 60 * 1000 },
+  "7d": { label: "7 Gün", ms: 7 * 24 * 60 * 60 * 1000 },
+  custom: { label: "📅 Özel", ms: 0 },
+};
 
 function loadContacts(): string[] {
   try {
@@ -134,6 +144,217 @@ function formatTime(nanoseconds: bigint): string {
   });
 }
 
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "0s";
+  const totalSecs = Math.floor(ms / 1000);
+  const days = Math.floor(totalSecs / 86400);
+  const hours = Math.floor((totalSecs % 86400) / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  if (days > 0) return `${days}g ${hours}s`;
+  if (hours > 0) return `${hours}s ${mins}d`;
+  if (mins > 0) return `${mins}d ${secs}s`;
+  return `${secs}s`;
+}
+
+// ─── Capsule helpers ──────────────────────────────────────────────────────────
+
+function getCapsuleViewed(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(CAPSULE_MESSAGES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function markCapsuleRevealed(msgId: string) {
+  const data = getCapsuleViewed();
+  data[msgId] = true;
+  localStorage.setItem(CAPSULE_MESSAGES_KEY, JSON.stringify(data));
+}
+
+function isCapsuleRevealed(msgId: string): boolean {
+  return !!getCapsuleViewed()[msgId];
+}
+
+// ─── OneTime helpers ──────────────────────────────────────────────────────────
+
+function getOnetimeViewed(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(ONETIME_VIEWED_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function markOnetimeViewed(msgId: string) {
+  const data = getOnetimeViewed();
+  data[msgId] = true;
+  localStorage.setItem(ONETIME_VIEWED_KEY, JSON.stringify(data));
+}
+
+function isOnetimeViewed(msgId: string): boolean {
+  return !!getOnetimeViewed()[msgId];
+}
+
+// ─── Capsule Countdown component ─────────────────────────────────────────────
+
+function CapsuleCountdown({
+  unlockAt,
+  msgId,
+  content,
+  isMine,
+  onUnlock,
+}: {
+  unlockAt: number;
+  msgId: string;
+  content: string;
+  isMine: boolean;
+  onUnlock: () => void;
+}) {
+  const [remaining, setRemaining] = useState(() => unlockAt - Date.now());
+  const [unlocked, setUnlocked] = useState(() => {
+    if (Date.now() >= unlockAt) return true;
+    return isCapsuleRevealed(msgId);
+  });
+  const [justUnlocked, setJustUnlocked] = useState(false);
+
+  useEffect(() => {
+    if (unlocked) return;
+    const tick = setInterval(() => {
+      const rem = unlockAt - Date.now();
+      setRemaining(rem);
+      if (rem <= 0) {
+        clearInterval(tick);
+        markCapsuleRevealed(msgId);
+        setUnlocked(true);
+        setJustUnlocked(true);
+        if (!isMine) {
+          onUnlock();
+        }
+      }
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [unlocked, unlockAt, msgId, isMine, onUnlock]);
+
+  if (unlocked) {
+    return (
+      <div className="space-y-1">
+        {justUnlocked && !isMine && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-[10px] text-amber-400 font-medium mb-1"
+          >
+            📬 Kapsül açıldı!
+          </motion.div>
+        )}
+        <motion.span
+          initial={justUnlocked ? { opacity: 0, scale: 0.95 } : false}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+        >
+          {content}
+        </motion.span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
+        <span className="text-base">⏰</span>
+        <span className="text-[11px] text-amber-400/80 font-mono">
+          {formatCountdown(remaining)} sonra açılır
+        </span>
+      </div>
+      <div
+        className="text-sm select-none"
+        style={{ filter: "blur(6px)", userSelect: "none" }}
+        aria-hidden="true"
+      >
+        {content.slice(0, 40)}
+        {"..."}
+      </div>
+    </div>
+  );
+}
+
+// ─── OneTime message component ────────────────────────────────────────────────
+
+function OneTimeMessageContent({
+  content,
+  msgId,
+  isMine,
+  onDelete,
+}: {
+  content: string;
+  msgId: string;
+  isMine: boolean;
+  onDelete: () => void;
+}) {
+  const [state, setState] = useState<"locked" | "viewing" | "deleted">(() => {
+    if (isMine) return "viewing";
+    return isOnetimeViewed(msgId) ? "deleted" : "locked";
+  });
+  const [countdown, setCountdown] = useState(3);
+
+  const handleTap = () => {
+    if (state !== "locked" || isMine) return;
+    markOnetimeViewed(msgId);
+    setState("viewing");
+  };
+
+  useEffect(() => {
+    if (state !== "viewing" || isMine) return;
+    if (countdown <= 0) {
+      setState("deleted");
+      onDelete();
+      return;
+    }
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [state, countdown, isMine, onDelete]);
+
+  if (state === "deleted") {
+    return (
+      <span className="text-[11px] text-muted-foreground/60 italic">
+        💨 Bu mesaj silindi
+      </span>
+    );
+  }
+
+  if (state === "locked") {
+    return (
+      <button
+        type="button"
+        onClick={handleTap}
+        className="flex items-center gap-1.5 py-0.5 group"
+      >
+        <span className="text-base">👁️</span>
+        <span className="text-[11px] text-cyan-400/80 group-hover:text-cyan-400 transition-colors">
+          Görmek için dokun — sadece 1 kez
+        </span>
+      </button>
+    );
+  }
+
+  // viewing
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1 mb-0.5">
+        <span className="text-[10px] text-cyan-400 font-mono tabular-nums">
+          {countdown}s
+        </span>
+        <span className="text-[10px] text-cyan-400/60">sonra silinecek</span>
+      </div>
+      <span>{content}</span>
+    </div>
+  );
+}
+
 // ─── Ghost local countdown ──────────────────────────────────────────────────
 
 function GhostLocalCountdown({
@@ -157,7 +378,6 @@ function GhostLocalCountdown({
       );
       return remaining;
     }
-    // First view — set expiry
     const expiresAt = Date.now() + timerSec * 1000;
     localStorage.setItem(key, String(expiresAt));
     return timerSec;
@@ -187,7 +407,7 @@ function GhostLocalCountdown({
   );
 }
 
-// ─── Backend ghost countdown (uses ghostDeleteAt from backend) ───────────────
+// ─── Backend ghost countdown ─────────────────────────────────────────────────
 
 function GhostCountdown({
   ghostDeleteAt,
@@ -273,13 +493,23 @@ function MessageBubble({
   const [burning, setBurning] = useState(false);
   const [showBurnCountdown, setShowBurnCountdown] = useState(false);
   const [burnDone, setBurnDone] = useState(false);
+  const [oneTimeDeleted, setOneTimeDeleted] = useState(false);
   const viewedRef = useRef(false);
   const deleteMessage = useDeleteMessage();
 
   const isBurn = msg.content.startsWith("[BURN]");
   const displayContent = isBurn ? msg.content.slice(6).trim() : msg.content;
 
-  // Detect first view for ghost/burn
+  // Detect capsule: [CAPSULE:1714000000000] text
+  const capsuleMatch = msg.content.match(/^\[CAPSULE:(\d+)\](.*)$/s);
+  const isCapsule = !!capsuleMatch;
+  const capsuleUnlockAt = isCapsule ? Number(capsuleMatch![1]) : 0;
+  const capsuleContent = isCapsule ? capsuleMatch![2].trim() : "";
+
+  // Detect one-time: [ONETIME] text
+  const isOneTime = msg.content.startsWith("[ONETIME]");
+  const oneTimeContent = isOneTime ? msg.content.slice(9).trim() : "";
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: trigger once
   useEffect(() => {
     if (!viewedRef.current && !isMine) {
@@ -298,11 +528,22 @@ function MessageBubble({
   const handleBurnCountdownDone = useCallback(() => {
     setShowBurnCountdown(false);
     setBurning(true);
-    // After burn animation, remove
     setTimeout(() => {
       setBurnDone(true);
       deleteMessage.mutate({ msgId: msg.id, otherAnonId });
     }, 900);
+  }, [deleteMessage, msg.id, otherAnonId]);
+
+  const handleCapsuleUnlock = useCallback(() => {
+    toast("📬 Kapsül açıldı!", { duration: 3000 });
+  }, []);
+
+  const handleOneTimeDelete = useCallback(() => {
+    setOneTimeDeleted(true);
+    // give animation time before full delete
+    setTimeout(() => {
+      deleteMessage.mutate({ msgId: msg.id, otherAnonId });
+    }, 1200);
   }, [deleteMessage, msg.id, otherAnonId]);
 
   if (expired || burnDone) return null;
@@ -317,6 +558,20 @@ function MessageBubble({
   }
 
   const isEnhancedGhost = msg.isGhost && ghostTimerSec !== null;
+
+  // Determine special type border styles
+  const getBubbleBorder = () => {
+    if (isBurn)
+      return "border-2 border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.3)]";
+    if (isCapsule)
+      return "border border-amber-500/50 shadow-[0_0_8px_rgba(251,191,36,0.2)]";
+    if (isOneTime)
+      return "border border-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.2)]";
+    if (msg.isGhost)
+      return "border border-dashed border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.2)]";
+    if (isMine) return "border border-primary/30";
+    return "border border-white/8";
+  };
 
   return (
     <AnimatePresence>
@@ -336,18 +591,12 @@ function MessageBubble({
         >
           <div
             className={`relative max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words ${
-              isMine
-                ? "bg-primary/20 text-foreground rounded-br-sm"
-                : "bg-white/5 text-foreground rounded-bl-sm"
-            } ${
-              isBurn
-                ? "border-2 border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.3)]"
-                : msg.isGhost
-                  ? "border border-dashed border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.2)]"
-                  : isMine
-                    ? "border border-primary/30"
-                    : "border border-white/8"
-            }`}
+              isMine && isBurn
+                ? "bubble-burn text-foreground rounded-br-sm"
+                : isMine
+                  ? "bubble-sent text-foreground rounded-br-sm"
+                  : "bg-white/6 border border-white/8 text-foreground rounded-bl-sm"
+            } ${getBubbleBorder()} ${msg.isGhost && !isMine ? "bubble-ghost" : ""} ${isCapsule ? "bubble-capsule" : ""}`}
           >
             {/* Burn countdown overlay */}
             {showBurnCountdown && (
@@ -362,13 +611,50 @@ function MessageBubble({
               <span className="mr-1 text-[13px]">👻</span>
             )}
 
-            <span>
-              {isBurn
-                ? displayContent
-                : isEnhancedGhost
-                  ? contentForGhost
-                  : msg.content}
-            </span>
+            {/* Content rendering */}
+            {isCapsule ? (
+              <CapsuleCountdown
+                unlockAt={capsuleUnlockAt}
+                msgId={msg.id.toString()}
+                content={capsuleContent}
+                isMine={isMine}
+                onUnlock={handleCapsuleUnlock}
+              />
+            ) : isOneTime ? (
+              <AnimatePresence>
+                {!oneTimeDeleted ? (
+                  <motion.div
+                    key="onetime"
+                    exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <OneTimeMessageContent
+                      content={oneTimeContent}
+                      msgId={msg.id.toString()}
+                      isMine={isMine}
+                      onDelete={handleOneTimeDelete}
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.span
+                    key="deleted"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-[11px] text-muted-foreground/60 italic"
+                  >
+                    💨 Bu mesaj silindi
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            ) : (
+              <span>
+                {isBurn
+                  ? displayContent
+                  : isEnhancedGhost
+                    ? contentForGhost
+                    : msg.content}
+              </span>
+            )}
 
             <div
               className={`flex items-center gap-1 mt-0.5 ${
@@ -379,7 +665,6 @@ function MessageBubble({
                 {formatTime(msg.timestamp)}
               </span>
 
-              {/* Enhanced ghost with local timer */}
               {isEnhancedGhost && !isMine && (
                 <GhostLocalCountdown
                   msgId={msg.id.toString()}
@@ -388,7 +673,6 @@ function MessageBubble({
                 />
               )}
 
-              {/* Backend ghost countdown */}
               {msg.isGhost &&
                 !isBurn &&
                 !isEnhancedGhost &&
@@ -414,7 +698,7 @@ function MessageBubble({
             </div>
 
             {/* Sender labels */}
-            {isMine && msg.isGhost && !isBurn && (
+            {isMine && msg.isGhost && !isBurn && !isCapsule && !isOneTime && (
               <div className="text-[9px] text-purple-400/60 mt-0.5 flex items-center gap-0.5">
                 👻 hayalet mesaj
               </div>
@@ -422,6 +706,16 @@ function MessageBubble({
             {isMine && isBurn && (
               <div className="text-[9px] text-red-400/60 mt-0.5 flex items-center gap-0.5">
                 🔥 Yak ve Unut
+              </div>
+            )}
+            {isMine && isCapsule && (
+              <div className="text-[9px] text-amber-400/60 mt-0.5 flex items-center gap-0.5">
+                ⏰ Zaman kapsülü
+              </div>
+            )}
+            {isMine && isOneTime && (
+              <div className="text-[9px] text-cyan-400/60 mt-0.5 flex items-center gap-0.5">
+                👁️ Tek seferlik
               </div>
             )}
           </div>
@@ -562,7 +856,12 @@ function ChatWindow({
   const [input, setInput] = useState("");
   const [ghostMode, setGhostMode] = useState(false);
   const [burnMode, setBurnMode] = useState(false);
+  const [capsuleMode, setCapsuleMode] = useState(false);
+  const [oneTimeMode, setOneTimeMode] = useState(false);
   const [ghostTimer, setGhostTimer] = useState<GhostTimer>(60);
+  const [capsuleDelay, setCapsuleDelay] = useState<CapsuleDelay>("1h");
+  const [customCapsuleDate, setCustomCapsuleDate] = useState("");
+  // capsule popover state removed - unused
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
@@ -609,22 +908,42 @@ function ChatWindow({
     }
   }, [msgCount]);
 
-  const toggleGhost = () => {
-    setGhostMode((v) => !v);
+  const clearAllModes = () => {
+    setGhostMode(false);
     setBurnMode(false);
+    setCapsuleMode(false);
+    setOneTimeMode(false);
+  };
+
+  const toggleGhost = () => {
+    const next = !ghostMode;
+    clearAllModes();
+    setGhostMode(next);
   };
 
   const toggleBurn = () => {
-    setBurnMode((v) => !v);
-    setGhostMode(false);
+    const next = !burnMode;
+    clearAllModes();
+    setBurnMode(next);
+  };
+
+  const toggleCapsule = () => {
+    const next = !capsuleMode;
+    clearAllModes();
+    setCapsuleMode(next);
+  };
+
+  const toggleOneTime = () => {
+    const next = !oneTimeMode;
+    clearAllModes();
+    setOneTimeMode(next);
   };
 
   const handleSend = async () => {
     const text = input.trim();
     if (!text) return;
     setInput("");
-    setGhostMode(false);
-    setBurnMode(false);
+    clearAllModes();
 
     let content = text;
     let isGhost = false;
@@ -635,6 +954,14 @@ function ChatWindow({
     } else if (ghostMode) {
       content = `[GHOST:${ghostTimer}] ${text}`;
       isGhost = true;
+    } else if (capsuleMode) {
+      const unlockAt =
+        capsuleDelay === "custom" && customCapsuleDate
+          ? new Date(customCapsuleDate).getTime()
+          : Date.now() + CAPSULE_DELAY_MAP[capsuleDelay].ms;
+      content = `[CAPSULE:${unlockAt}] ${text}`;
+    } else if (oneTimeMode) {
+      content = `[ONETIME] ${text}`;
     }
 
     try {
@@ -701,7 +1028,15 @@ function ChatWindow({
     }
   };
 
-  const activeMode = burnMode ? "burn" : ghostMode ? "ghost" : null;
+  const activeMode = burnMode
+    ? "burn"
+    : ghostMode
+      ? "ghost"
+      : capsuleMode
+        ? "capsule"
+        : oneTimeMode
+          ? "onetime"
+          : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -872,6 +1207,51 @@ function ChatWindow({
                 )}
               </AnimatePresence>
 
+              {/* Capsule delay selector */}
+              <AnimatePresence>
+                {capsuleMode && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-2 mb-2 overflow-hidden"
+                  >
+                    <span className="text-[10px] text-amber-400/70 flex-shrink-0">
+                      ⏰ Gecikme:
+                    </span>
+                    {(["1h", "24h", "7d", "custom"] as CapsuleDelay[]).map(
+                      (d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setCapsuleDelay(d)}
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono border transition-all ${
+                            capsuleDelay === d
+                              ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
+                              : "bg-white/5 border-white/10 text-muted-foreground hover:border-white/20"
+                          }`}
+                          data-ocid="chat.toggle"
+                        >
+                          {CAPSULE_DELAY_MAP[d].label}
+                        </button>
+                      ),
+                    )}
+                    {capsuleDelay === "custom" && (
+                      <input
+                        type="datetime-local"
+                        value={customCapsuleDate}
+                        onChange={(e) => setCustomCapsuleDate(e.target.value)}
+                        min={new Date(Date.now() + 60000)
+                          .toISOString()
+                          .slice(0, 16)}
+                        className="ml-1 bg-[oklch(0.12_0_0)] border border-amber-500/30 text-amber-400 text-[11px] rounded-lg px-2 py-0.5 focus:outline-none focus:border-amber-500/60 [color-scheme:dark]"
+                        data-ocid="chat.input"
+                      />
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="flex items-end gap-2">
                 <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
                   <PopoverTrigger asChild>
@@ -946,6 +1326,42 @@ function ChatWindow({
                   <span className="text-base">🔥</span>
                 </Button>
 
+                {/* Capsule toggle */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleCapsule}
+                  className={`h-9 w-9 p-0 flex-shrink-0 transition-all ${
+                    capsuleMode
+                      ? "text-amber-400 bg-amber-500/15 hover:bg-amber-500/25 shadow-[0_0_8px_rgba(251,191,36,0.3)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title={
+                    capsuleMode
+                      ? `Zaman kapsülü (${CAPSULE_DELAY_MAP[capsuleDelay].label})`
+                      : "Zaman kapsülü"
+                  }
+                  data-ocid="chat.toggle"
+                >
+                  <span className="text-base">⏰</span>
+                </Button>
+
+                {/* One-time toggle */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleOneTime}
+                  className={`h-9 w-9 p-0 flex-shrink-0 transition-all ${
+                    oneTimeMode
+                      ? "text-cyan-400 bg-cyan-500/15 hover:bg-cyan-500/25 shadow-[0_0_8px_rgba(6,182,212,0.3)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title={oneTimeMode ? "Tek seferlik ON" : "Tek seferlik mesaj"}
+                  data-ocid="chat.toggle"
+                >
+                  <span className="text-base">👁️</span>
+                </Button>
+
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -955,7 +1371,11 @@ function ChatWindow({
                       ? "🔥 Yak ve unut..."
                       : ghostMode
                         ? `👻 Hayalet mesaj (${ghostTimer}s)...`
-                        : "Message..."
+                        : capsuleMode
+                          ? `⏰ ${CAPSULE_DELAY_MAP[capsuleDelay].label} sonra açılır...`
+                          : oneTimeMode
+                            ? "👁️ Tek seferlik mesaj..."
+                            : "Message..."
                   }
                   disabled={isBlocked}
                   className={`flex-1 bg-white/5 border-white/10 focus:border-primary/40 rounded-xl h-9 text-sm ${
@@ -963,7 +1383,11 @@ function ChatWindow({
                       ? "border-dashed border-red-500/40 focus:border-red-500/60"
                       : ghostMode
                         ? "border-dashed border-purple-500/40 focus:border-purple-500/60"
-                        : ""
+                        : capsuleMode
+                          ? "border-dashed border-amber-500/40 focus:border-amber-500/60"
+                          : oneTimeMode
+                            ? "border-dashed border-cyan-500/40 focus:border-cyan-500/60"
+                            : ""
                   }`}
                   data-ocid="chat.input"
                 />
@@ -989,7 +1413,11 @@ function ChatWindow({
                       ? "bg-red-500/70 hover:bg-red-500"
                       : ghostMode
                         ? "bg-purple-500/70 hover:bg-purple-500"
-                        : "bg-primary/80 hover:bg-primary"
+                        : capsuleMode
+                          ? "bg-amber-500/70 hover:bg-amber-500"
+                          : oneTimeMode
+                            ? "bg-cyan-500/70 hover:bg-cyan-500"
+                            : "bg-primary/80 hover:bg-primary"
                   }`}
                   data-ocid="chat.submit_button"
                 >
@@ -1007,7 +1435,11 @@ function ChatWindow({
                     className={`text-[10px] mt-1.5 flex items-center gap-1 ${
                       activeMode === "burn"
                         ? "text-red-400/70"
-                        : "text-purple-400/70"
+                        : activeMode === "ghost"
+                          ? "text-purple-400/70"
+                          : activeMode === "capsule"
+                            ? "text-amber-400/70"
+                            : "text-cyan-400/70"
                     }`}
                   >
                     {activeMode === "burn" ? (
@@ -1015,10 +1447,20 @@ function ChatWindow({
                         <span>🔥</span> Yak ve Unut — karşı taraf mesajı açar
                         açmaz 3 saniye sonra yanar
                       </>
-                    ) : (
+                    ) : activeMode === "ghost" ? (
                       <>
                         <span>👻</span> Hayalet mod — mesaj {ghostTimer} saniye
                         sonra yok olur
+                      </>
+                    ) : activeMode === "capsule" ? (
+                      <>
+                        <span>⏰</span> Zaman kapsülü — mesaj{" "}
+                        {CAPSULE_DELAY_MAP[capsuleDelay].label} sonra açılacak
+                      </>
+                    ) : (
+                      <>
+                        <span>👁️</span> Tek seferlik — karşı taraf sadece 1 kez 3
+                        saniye görebilir
                       </>
                     )}
                   </motion.p>

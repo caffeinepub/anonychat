@@ -594,61 +594,211 @@ function CurrencyChips({
   );
 }
 
-const BANKS = [
+const BANK_GROUPS = [
   {
-    id: "ziraat",
-    name: "Ziraat Bankası 🇹🇷",
-    placeholder: "TR00 0001 0000 0000 0000 00",
+    label: "🏦 Türk Bankaları",
+    banks: [
+      {
+        id: "ziraat",
+        name: "Ziraat Bankası",
+        placeholder: "TR00 0001 0000 0000 0000 00",
+      },
+      {
+        id: "garanti",
+        name: "Garanti BBVA",
+        placeholder: "TR00 0006 2000 0000 0000 00",
+      },
+      {
+        id: "isbank",
+        name: "İş Bankası",
+        placeholder: "TR00 0006 4000 0000 0000 00",
+      },
+      {
+        id: "akbank",
+        name: "Akbank",
+        placeholder: "TR00 0004 6000 0000 0000 00",
+      },
+      {
+        id: "yapikredi",
+        name: "Yapı Kredi",
+        placeholder: "TR00 0006 7000 0000 0000 00",
+      },
+      {
+        id: "halkbank",
+        name: "Halkbank",
+        placeholder: "TR00 0001 2000 0000 0000 00",
+      },
+      {
+        id: "vakifbank",
+        name: "Vakıfbank",
+        placeholder: "TR00 0001 5000 0000 0000 00",
+      },
+      {
+        id: "denizbank",
+        name: "Denizbank",
+        placeholder: "TR00 0013 4000 0000 0000 00",
+      },
+      { id: "teb", name: "TEB", placeholder: "TR00 0003 2000 0000 0000 00" },
+      {
+        id: "ing_tr",
+        name: "ING Türkiye",
+        placeholder: "TR00 0009 9800 0000 0000 00",
+      },
+      {
+        id: "sekerbank",
+        name: "Şekerbank",
+        placeholder: "TR00 0005 9000 0000 0000 00",
+      },
+      {
+        id: "qnb",
+        name: "QNB Finansbank",
+        placeholder: "TR00 0011 1000 0000 0000 00",
+      },
+      {
+        id: "fibabanka",
+        name: "Fibabanka",
+        placeholder: "TR00 0010 3000 0000 0000 00",
+      },
+      {
+        id: "odeabank",
+        name: "Odeabank",
+        placeholder: "TR00 0009 2000 0000 0000 00",
+      },
+      {
+        id: "alternatif",
+        name: "Alternatif Bank",
+        placeholder: "TR00 0008 0000 0000 0000 00",
+      },
+      {
+        id: "hsbc_tr",
+        name: "HSBC Türkiye",
+        placeholder: "TR00 0012 3000 0000 0000 00",
+      },
+      {
+        id: "burgan",
+        name: "Burgan Bank",
+        placeholder: "TR00 0014 4000 0000 0000 00",
+      },
+    ],
   },
   {
-    id: "garanti",
-    name: "Garanti BBVA 🇹🇷",
-    placeholder: "TR00 0006 2000 0000 0000 00",
+    label: "🏦 Avrupa Bankaları",
+    banks: [
+      {
+        id: "deutsche",
+        name: "Deutsche Bank",
+        placeholder: "DE00 1007 0024 0000 0000 00",
+      },
+      { id: "ing", name: "ING", placeholder: "NL00 INGB 0000 0000 00" },
+      {
+        id: "commerzbank",
+        name: "Commerzbank",
+        placeholder: "DE00 2004 0060 0000 0000 00",
+      },
+      {
+        id: "socgen",
+        name: "Société Générale",
+        placeholder: "FR00 3000 3000 0000 0000 00",
+      },
+      {
+        id: "bnp",
+        name: "BNP Paribas",
+        placeholder: "FR00 3000 4000 0000 0000 00",
+      },
+      {
+        id: "santander",
+        name: "Santander",
+        placeholder: "ES00 0049 0000 0000 0000 00",
+      },
+      { id: "bbva", name: "BBVA", placeholder: "ES00 0182 0000 0000 0000 00" },
+      {
+        id: "unicredit",
+        name: "UniCredit",
+        placeholder: "IT00 X030 2801 2300 0000 0000 000",
+      },
+      {
+        id: "rabobank",
+        name: "Rabobank",
+        placeholder: "NL00 RABO 0000 0000 00",
+      },
+      { id: "abn", name: "ABN AMRO", placeholder: "NL00 ABNA 0000 0000 00" },
+      { id: "n26", name: "N26", placeholder: "DE00 1001 1001 2625 0000 00" },
+      { id: "bunq", name: "Bunq", placeholder: "NL00 BUNQ 2025 0000 00" },
+      {
+        id: "monzo",
+        name: "Monzo",
+        placeholder: "GB00 MONZ 0000 0000 0000 00",
+      },
+      {
+        id: "starling",
+        name: "Starling Bank",
+        placeholder: "GB00 SRLG 0000 0000 0000 00",
+      },
+      {
+        id: "barclays",
+        name: "Barclays",
+        placeholder: "GB00 BARC 2000 0000 0000 00",
+      },
+      { id: "hsbc", name: "HSBC", placeholder: "GB00 HBUK 4000 0000 0000 00" },
+      {
+        id: "lloyds",
+        name: "Lloyds",
+        placeholder: "GB00 LOYD 3096 7000 0000 00",
+      },
+      {
+        id: "natwest",
+        name: "NatWest",
+        placeholder: "GB00 NWBK 6000 0100 0000 00",
+      },
+    ],
   },
   {
-    id: "isbank",
-    name: "İş Bankası 🇹🇷",
-    placeholder: "TR00 0006 4000 0000 0000 00",
+    label: "🌍 Fintech / Uluslararası",
+    banks: [
+      { id: "revolut", name: "Revolut", placeholder: "@revolut-username" },
+      { id: "wise", name: "Wise", placeholder: "email@wise.com veya +90..." },
+      { id: "paypal", name: "PayPal", placeholder: "email@paypal.com" },
+      { id: "zen", name: "Zen", placeholder: "@zen-username" },
+      { id: "skrill", name: "Skrill", placeholder: "email@skrill.com" },
+      { id: "neteller", name: "Neteller", placeholder: "email@neteller.com" },
+      { id: "paysafecard", name: "Paysafecard", placeholder: "16-digit code" },
+      {
+        id: "westernunion",
+        name: "Western Union",
+        placeholder: "Receiver name + MTCN",
+      },
+      { id: "moneygram", name: "MoneyGram", placeholder: "Reference number" },
+      { id: "remitly", name: "Remitly", placeholder: "email@remitly.com" },
+      { id: "swift", name: "SWIFT/BIC", placeholder: "SWIFT code + account" },
+    ],
   },
   {
-    id: "akbank",
-    name: "Akbank 🇹🇷",
-    placeholder: "TR00 0004 6000 0000 0000 00",
+    label: "💰 Kripto",
+    banks: [
+      {
+        id: "usdt_trc20",
+        name: "USDT (TRC20)",
+        placeholder: "T... wallet address",
+      },
+      {
+        id: "usdt_erc20",
+        name: "USDT (ERC20)",
+        placeholder: "0x... wallet address",
+      },
+      {
+        id: "btc",
+        name: "Bitcoin (BTC)",
+        placeholder: "bc1... wallet address",
+      },
+      {
+        id: "eth",
+        name: "Ethereum (ETH)",
+        placeholder: "0x... wallet address",
+      },
+      { id: "bnb", name: "BNB", placeholder: "bnb1... wallet address" },
+      { id: "usdc", name: "USDC", placeholder: "0x... wallet address" },
+    ],
   },
-  {
-    id: "yapikredi",
-    name: "Yapı Kredi 🇹🇷",
-    placeholder: "TR00 0006 7000 0000 0000 00",
-  },
-  {
-    id: "halkbank",
-    name: "Halkbank 🇹🇷",
-    placeholder: "TR00 0001 2000 0000 0000 00",
-  },
-  {
-    id: "vakifbank",
-    name: "Vakıfbank 🇹🇷",
-    placeholder: "TR00 0001 5000 0000 0000 00",
-  },
-  {
-    id: "denizbank",
-    name: "Denizbank 🇹🇷",
-    placeholder: "TR00 0013 4000 0000 0000 00",
-  },
-  {
-    id: "deutsche",
-    name: "Deutsche Bank 🇩🇪",
-    placeholder: "DE00 1007 0024 0000 0000 00",
-  },
-  { id: "ing", name: "ING 🇳🇱", placeholder: "NL00 INGB 0000 0000 00" },
-  {
-    id: "revolut",
-    name: "Revolut 🌍",
-    placeholder: "GB00 REVO 0099 6953 0000 00",
-  },
-  { id: "n26", name: "N26 🌍", placeholder: "DE00 1001 1001 2625 0000 00" },
-  { id: "wise", name: "Wise 🌍", placeholder: "BE00 9671 8030 0000" },
-  { id: "swift", name: "SWIFT/BIC 🌐", placeholder: "Enter SWIFT/BIC code" },
 ] as const;
 
 // ─── ActivityFeed ─────────────────────────────────────────────────────────────
@@ -2848,6 +2998,10 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
   const [myListingsLoading, setMyListingsLoading] = useState(false);
   const [newPrice, setNewPrice] = useState("");
   const [newIban, setNewIban] = useState("");
+  const [showAllBanks, setShowAllBanks] = useState(false);
+  const [selectedPaymentGroup, setSelectedPaymentGroup] = useState<
+    string | null
+  >(null);
   const [creating, setCreating] = useState(false);
 
   // My Trades
@@ -2898,7 +3052,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
       const data = (await (actor as any).getMyListings()) as P2PListing[];
       setMyListings(data);
     } catch {
-      toast.error("Failed to load your listings");
+      // silent - background poll
     }
   }, [actor]);
 
@@ -2960,24 +3114,38 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
   };
 
   const handleCreateListing = async () => {
-    if (!actor) return;
+    if (!actor) {
+      toast.error("Bağlantı bekleniyor, lütfen bekleyin");
+      return;
+    }
+    if (!myAnonId) {
+      toast.error("Önce ID oluşturmanız gerekiyor");
+      return;
+    }
     if (!newPrice.trim()) {
-      toast.error("Enter a price");
+      toast.error("Fiyat girin");
       return;
     }
     if (!newIban.trim()) {
-      toast.error("Enter your IBAN");
+      toast.error("IBAN / adres girin");
       return;
     }
     setCreating(true);
     try {
       await (actor as any).createListing(newPrice.trim(), newIban.trim());
-      toast.success("Listing created!");
+      toast.success("İlan oluşturuldu!");
       setNewPrice("");
       setNewIban("");
       fetchMyListings();
-    } catch {
-      toast.error("Failed to create listing");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("already have an active")) {
+        toast.error("Zaten aktif bir ilanınız var. Önce iptal edin.");
+      } else if (msg.includes("register")) {
+        toast.error("Önce ID oluşturmanız gerekiyor");
+      } else {
+        toast.error(`İlan oluşturulamadı: ${msg.slice(0, 80)}`);
+      }
     } finally {
       setCreating(false);
     }
@@ -3493,49 +3661,89 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
 
                     <div>
                       <Label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1.5">
-                        Banka Seç (Opsiyonel)
+                        Ödeme Yöntemi Seç
                       </Label>
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {BANKS.slice(0, 6).map((bank) => (
+                      {/* Category tabs */}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {BANK_GROUPS.map((g) => (
                           <button
-                            key={bank.id}
+                            key={g.label}
                             type="button"
-                            onClick={() => setNewIban(bank.placeholder)}
-                            className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-white/5 border-white/15 text-zinc-300 hover:bg-white/10 hover:border-white/30 transition-all"
+                            onClick={() =>
+                              setSelectedPaymentGroup(
+                                selectedPaymentGroup === g.label
+                                  ? null
+                                  : g.label,
+                              )
+                            }
+                            className={`text-[9px] font-semibold px-2 py-1 rounded-full border transition-all ${selectedPaymentGroup === g.label ? "bg-primary/20 border-primary/50 text-primary" : "bg-white/5 border-white/15 text-zinc-400 hover:bg-white/10"}`}
                           >
-                            {bank.name}
+                            {g.label.split(" ")[0]}{" "}
+                            {g.label.split(" ").slice(1).join(" ")}
                           </button>
                         ))}
-                        <button
-                          type="button"
-                          onClick={() => {}}
-                          className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-white/5 border-white/15 text-zinc-400 hover:bg-white/10 transition-all"
-                        >
-                          +{BANKS.length - 6} daha
-                        </button>
                       </div>
+                      {/* Bank chips in selected group */}
+                      {selectedPaymentGroup &&
+                        (() => {
+                          const grp = BANK_GROUPS.find(
+                            (g) => g.label === selectedPaymentGroup,
+                          );
+                          if (!grp) return null;
+                          const visibleBanks = showAllBanks
+                            ? grp.banks
+                            : grp.banks.slice(0, 8);
+                          return (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {visibleBanks.map((bank) => (
+                                <button
+                                  key={bank.id}
+                                  type="button"
+                                  onClick={() => setNewIban(bank.placeholder)}
+                                  className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-white/5 border-white/15 text-zinc-300 hover:bg-primary/20 hover:border-primary/40 hover:text-primary transition-all"
+                                >
+                                  {bank.name}
+                                </button>
+                              ))}
+                              {!showAllBanks && grp.banks.length > 8 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowAllBanks(true)}
+                                  className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-white/5 border-white/15 text-zinc-400 hover:bg-white/10 transition-all"
+                                >
+                                  +{grp.banks.length - 8} daha
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                     </div>
 
                     <div>
                       <Label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1.5">
-                        Your IBAN *
+                        IBAN / Adres / Kullanıcı adı *
                       </Label>
                       <Input
-                        placeholder="DE00 0000 0000 0000 0000 00"
+                        placeholder="IBAN, cüzdan adresi veya @kullanıcı"
                         value={newIban}
                         onChange={(e) => setNewIban(e.target.value)}
                         className="bg-white/5 border-white/10 focus:border-primary/50 font-mono text-sm"
                         data-ocid="p2p.input"
                       />
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        Buyers will transfer payment to this account.
+                        Alıcılar ödemeyi bu hesaba gönderecek.
                       </p>
                     </div>
 
                     <Button
                       className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
                       onClick={handleCreateListing}
-                      disabled={creating || !newPrice.trim() || !newIban.trim()}
+                      disabled={
+                        creating ||
+                        !newPrice.trim() ||
+                        !newIban.trim() ||
+                        !myAnonId
+                      }
                       data-ocid="p2p.submit_button"
                     >
                       {creating ? (

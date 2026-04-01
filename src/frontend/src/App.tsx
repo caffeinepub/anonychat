@@ -1,11 +1,19 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeftRight,
+  Bell,
   Check,
   Coins,
   Compass,
@@ -15,13 +23,16 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
+  MoreVertical,
   Pencil,
   QrCode,
   ScanLine,
+  Search,
   Settings,
   Share2,
   Shield,
   Shuffle,
+  Smartphone,
   User,
   X,
   Zap,
@@ -31,9 +42,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { User as UserType } from "./backend";
 import { AdminPanel } from "./components/AdminPanel";
+import { AnonLevelCard } from "./components/AnonLevel";
 import { ChatView } from "./components/ChatView";
 import { DiscoverTab } from "./components/DiscoverTab";
 import { EarnTab } from "./components/EarnTab";
+import { GiftAnimation } from "./components/GiftAnimation";
+import { NotificationBanner } from "./components/NotificationBanner";
+import { NotificationCenter } from "./components/NotificationCenter";
 import { P2PMarket } from "./components/P2PMarket";
 import { PaymentSettingsModal } from "./components/PaymentSettingsModal";
 import { PremiumModal } from "./components/PremiumModal";
@@ -42,6 +57,8 @@ import { QRScannerModal } from "./components/QRScannerModal";
 import { RandomChat } from "./components/RandomChat";
 import { useActor } from "./hooks/useActor";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
+import { useNotifications } from "./hooks/useNotifications";
+import { usePWA } from "./hooks/usePWA";
 import {
   useGetMe,
   useRegister,
@@ -221,7 +238,10 @@ function UsernameEditor({
 function ProfileTab({
   user,
   onStartChat,
-}: { user: UserType; onStartChat: (anonId: string) => void }) {
+}: {
+  user: UserType;
+  onStartChat: (anonId: string) => void;
+}) {
   const updateUsername = useUpdateUsername();
   const setOnline = useSetOnline();
   const [showQRCode, setShowQRCode] = useState(false);
@@ -229,6 +249,7 @@ function ProfileTab({
   const [showPremium, setShowPremium] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showPaymentSettings, setShowPaymentSettings] = useState(false);
+  const [levelUpTrigger, setLevelUpTrigger] = useState(false);
 
   const handleShare = async () => {
     try {
@@ -252,6 +273,11 @@ function ProfileTab({
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col items-center px-4 pt-6 pb-6 max-w-md mx-auto w-full"
     >
+      {/* Anon Level Card */}
+      <div className="w-full">
+        <AnonLevelCard onLevelUp={() => setLevelUpTrigger((v) => !v)} />
+      </div>
+      <GiftAnimation type="levelup" trigger={levelUpTrigger} />
       {/* ID card */}
       <div
         className="glass-card rounded-2xl p-6 w-full relative overflow-hidden mb-4"
@@ -417,7 +443,7 @@ function ProfileTab({
           className="mt-4 w-full gap-2 h-10 text-sm border-white/10 bg-white/5 hover:bg-white/10 text-muted-foreground"
         >
           <Settings className="w-4 h-4" />
-          u2699ufe0f Admin Paneli
+          ⚙️ Admin Paneli
         </Button>
         <AdminPanel open={showAdmin} onClose={() => setShowAdmin(false)} />
       </div>
@@ -513,6 +539,53 @@ function UnreadBadge({ count }: { count: number }) {
   );
 }
 
+// PWA Install Banner
+function PWABanner({
+  onInstall,
+  onDismiss,
+}: { onInstall: () => void; onDismiss: () => void }) {
+  return (
+    <motion.div
+      initial={{ y: 80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 80, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px)+8px)] left-3 right-3 z-50 rounded-2xl border border-[oklch(0.72_0.2_145)/40%] bg-[oklch(0.13_0_0)] shadow-xl"
+      data-ocid="pwa.panel"
+    >
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <Smartphone className="w-5 h-5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            Ana ekrana ekle
+          </p>
+          <p className="text-xs text-muted-foreground truncate">
+            AnonChat'i yükle ve uygulama gibi kullan
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={onInstall}
+          data-ocid="pwa.primary_button"
+          className="bg-[oklch(0.72_0.2_145)] hover:bg-[oklch(0.65_0.2_145)] text-black font-semibold text-xs px-3 h-8 rounded-lg flex-shrink-0"
+        >
+          Yükle
+        </Button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          data-ocid="pwa.close_button"
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function App() {
   const { login, clear, loginStatus, identity, isInitializing } =
     useInternetIdentity();
@@ -522,10 +595,21 @@ export default function App() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("profile");
   const [initialContact, setInitialContact] = useState<string | undefined>();
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showNotifCenter, setShowNotifCenter] = useState(false);
 
   const { data: unreadCount = 0 } = useUnreadCount(me?.anonymousId ?? "");
+  const { canInstall, install, dismiss } = usePWA();
 
   const isLoggedIn = !!identity;
+
+  // Register service worker
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
 
   // Detect if loading is stuck — after 8s force show the landing page
   const [loadingStuck, setLoadingStuck] = useState(false);
@@ -607,6 +691,22 @@ export default function App() {
   const [chatActiveContact, setChatActiveContact] = useState<string | null>(
     null,
   );
+  const {
+    notifications,
+    unreadNotifCount,
+    markAllRead,
+    soundEnabled,
+    setSoundEnabled,
+    requestPushPermission,
+    pushPermission,
+    bannerQueue,
+    dismissBanner,
+    removeNotification,
+  } = useNotifications({
+    myAnonId: me?.anonymousId ?? "",
+    activeTab,
+    chatActiveContact,
+  });
 
   // Mark messages as read when switching to chat tab (only the active contact)
   const handleTabChange = (tab: AppTab) => {
@@ -657,34 +757,109 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-white/5 px-4 py-3 flex-shrink-0 z-40">
+      {/* WhatsApp-style Top Bar */}
+      <header className="border-b border-white/5 px-4 py-3 flex-shrink-0 z-40 bg-[oklch(0.09_0_0)]">
         <div className="max-w-screen-xl mx-auto flex items-center justify-between">
+          {/* Left: logo + online dot */}
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
-            <span className="font-semibold tracking-tight">
+            <span className="font-semibold tracking-tight glitch">
               Anon<span className="text-primary">Chat</span>
             </span>
+            {isLoggedIn && me && (
+              <span className="w-2 h-2 rounded-full bg-[oklch(0.72_0.2_145)] online-pulse" />
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Right: action icons */}
+          <div className="flex items-center gap-1">
             {isLoggedIn && me && (
-              <span className="text-xs text-muted-foreground font-mono hidden sm:block">
-                {me.anonymousId}
-              </span>
+              <>
+                {/* Search */}
+                <button
+                  type="button"
+                  data-ocid="nav.search_input"
+                  className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                  onClick={() => {
+                    setActiveTab("discover");
+                  }}
+                  aria-label="Ara"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+
+                {/* Notifications bell */}
+                <button
+                  type="button"
+                  data-ocid="notifications.open_modal_button"
+                  className="relative p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                  onClick={() => setShowNotifCenter(true)}
+                  aria-label="Bildirimler"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center leading-none">
+                      {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* 3-dot menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      data-ocid="nav.dropdown_menu"
+                      className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                      aria-label="Menü"
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="bg-[oklch(0.13_0_0)] border-white/10 text-foreground min-w-[160px]"
+                  >
+                    <DropdownMenuItem
+                      className="gap-2 cursor-pointer hover:bg-white/5"
+                      onClick={() => handleTabChange("profile")}
+                      data-ocid="nav.link"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Ayarlar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gap-2 cursor-pointer hover:bg-white/5"
+                      onClick={() => setShowQRModal(true)}
+                      data-ocid="nav.link"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      QR Kodu
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gap-2 cursor-pointer hover:bg-white/5"
+                      onClick={() => setShowPremiumModal(true)}
+                      data-ocid="nav.link"
+                    >
+                      <Crown className="w-4 h-4 text-amber-400" />
+                      <span className="text-amber-400">Premium</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-white/5" />
+                    <DropdownMenuItem
+                      className="gap-2 cursor-pointer hover:bg-white/5 text-red-400 focus:text-red-400"
+                      onClick={clear}
+                      data-ocid="nav.button"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Çıkış Yap
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             )}
-            {isLoggedIn ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clear}
-                data-ocid="nav.button"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="w-3.5 h-3.5 mr-1.5" />
-                oturumu Kapat
-              </Button>
-            ) : (
+
+            {/* Logged out: show login button */}
+            {!isLoggedIn && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -700,6 +875,22 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* QR modal triggered from top bar */}
+      {me && (
+        <QRCodeModal
+          open={showQRModal}
+          onClose={() => setShowQRModal(false)}
+          anonymousId={me.anonymousId}
+        />
+      )}
+      {me && (
+        <PremiumModal
+          open={showPremiumModal}
+          onClose={() => setShowPremiumModal(false)}
+          myAnonId={me.anonymousId}
+        />
+      )}
 
       {/* Main content */}
       <main
@@ -907,6 +1098,13 @@ export default function App() {
         </nav>
       )}
 
+      {/* PWA Install Banner */}
+      <AnimatePresence>
+        {canInstall && me && (
+          <PWABanner onInstall={install} onDismiss={dismiss} />
+        )}
+      </AnimatePresence>
+
       {/* Footer for non-logged-in state */}
       {!me && !isLoading && (
         <footer className="border-t border-white/5 py-6 px-4 flex-shrink-0">
@@ -925,6 +1123,35 @@ export default function App() {
       )}
 
       <Toaster position="bottom-center" theme="dark" />
+
+      {/* Notification Banner — slides from top */}
+      <NotificationBanner
+        bannerQueue={bannerQueue}
+        onDismiss={dismissBanner}
+        onReply={(contactId) => {
+          setInitialContact(contactId);
+          handleTabChange("chat");
+        }}
+      />
+
+      {/* Notification Center Drawer */}
+      <NotificationCenter
+        open={showNotifCenter}
+        onClose={() => setShowNotifCenter(false)}
+        notifications={notifications}
+        unreadNotifCount={unreadNotifCount}
+        markAllRead={markAllRead}
+        removeNotification={removeNotification}
+        soundEnabled={soundEnabled}
+        setSoundEnabled={setSoundEnabled}
+        pushPermission={pushPermission}
+        requestPushPermission={requestPushPermission}
+        onOpenChat={(contactId) => {
+          setInitialContact(contactId);
+          handleTabChange("chat");
+          setShowNotifCenter(false);
+        }}
+      />
     </div>
   );
 }

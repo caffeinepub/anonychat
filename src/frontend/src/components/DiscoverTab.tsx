@@ -10,6 +10,7 @@ import {
   useListPublicUsers,
   useUpdateLocation,
 } from "../hooks/useQueries";
+import { SecretRooms } from "./SecretRooms";
 
 function StatusDot({ online }: { online: boolean }) {
   return (
@@ -127,6 +128,7 @@ export function DiscoverTab({
     lat: number;
     lon: number;
   } | null>(null);
+  const [showSecretRooms, setShowSecretRooms] = useState(false);
   const [locationStatus, setLocationStatus] = useState<
     "idle" | "fetching" | "granted" | "denied"
   >("idle");
@@ -196,6 +198,10 @@ export function DiscoverTab({
 
   const onlineCount = filtered.filter((u) => u.isOnline).length;
 
+  if (showSecretRooms) {
+    return <SecretRooms onBack={() => setShowSecretRooms(false)} />;
+  }
+
   return (
     <div className="flex flex-col h-full max-w-md mx-auto w-full">
       {/* Header */}
@@ -235,6 +241,21 @@ export function DiscoverTab({
             </span>
           )}
         </div>
+      </div>
+
+      {/* Secret Rooms entry */}
+      <div className="px-4 pb-2">
+        <button
+          type="button"
+          onClick={() => setShowSecretRooms(true)}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-muted-foreground hover:text-foreground hover:border-white/20 transition-all"
+          data-ocid="discover.secondary_button"
+        >
+          🔐 <span className="font-medium">Gizli Odalar</span>
+          <span className="text-[10px] text-muted-foreground ml-auto">
+            Davetli anonim odalar →
+          </span>
+        </button>
       </div>
 
       {/* List */}

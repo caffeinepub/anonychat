@@ -1,176 +1,166 @@
-import { ArrowLeftRight, Coins, MessageSquare, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { X } from "lucide-react";
+import { AnimatePresence, motion, useMotionValue } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import type {
-  AppNotification,
-  NotificationType,
-} from "../hooks/useNotifications";
+import type { NotificationItem } from "../hooks/useNotifications";
 
-const AVATAR_CONFIG: Record<
-  NotificationType,
-  { icon: React.ReactNode; bg: string; initial?: string }
-> = {
-  message: {
-    icon: <MessageSquare className="w-4 h-4" />,
-    bg: "bg-[oklch(0.35_0.12_145)]",
-  },
-  p2p: {
-    icon: <ArrowLeftRight className="w-4 h-4" />,
-    bg: "bg-[oklch(0.3_0.1_250)]",
-  },
-  earn: {
-    icon: <Coins className="w-4 h-4" />,
-    bg: "bg-[oklch(0.35_0.1_60)]",
-  },
-};
+function getTypeIcon(type: NotificationItem["type"]) {
+  switch (type) {
+    case "p2p_trade":
+      return "💱";
+    case "id_sold":
+      return "🎉";
+    case "anoncash":
+      return "💰";
+    default:
+      return "💬";
+  }
+}
 
-const AVATAR_ICON_COLOR: Record<NotificationType, string> = {
-  message: "text-[oklch(0.72_0.2_145)]",
-  p2p: "text-[oklch(0.72_0.15_250)]",
-  earn: "text-[oklch(0.75_0.2_60)]",
-};
+function BannerItem({
+  notification,
+  onDismiss,
+  onReply,
+}: {
+  notification: NotificationItem;
+  onDismiss: (id: string) => void;
+  onReply?: (contactId: string) => void;
+}) {
+  const [progress, setProgress] = useState(100);
+  const startTime = useRef(Date.now());
+  const rafRef = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const DURATION = 5000;
 
-export interface NotificationBannerProps {
-  notification: AppNotification | null;
-  onDismiss: () => void;
-  onTap?: (notification: AppNotification) => void;
+  useEffect(() => {
+    const tick = () => {
+      const elapsed = Date.now() - startTime.current;
+      const remaining = Math.max(0, 100 - (elapsed / DURATION) * 100);
+      setProgress(remaining);
+      if (remaining > 0) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        onDismiss(notification.id);
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [notification.id, onDismiss]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (deltaY < -30) {
+      onDismiss(notification.id);
+    }
+    touchStartY.current = null;
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ y: -80, opacity: 0, scale: 0.96 }}
+      animate={{ y: 0, opacity: 1, scale: 1 }}
+      exit={{ y: -80, opacity: 0, scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+      style={{
+        background: "oklch(0.14 0.005 260)",
+      }}
+    >
+      {/* Progress bar */}
+      <div
+        className="absolute bottom-0 left-0 h-0.5 transition-none"
+        style={{
+          width: `${progress}%`,
+          background: "oklch(0.72 0.2 145)",
+          transition: "width 100ms linear",
+        }}
+      />
+
+      <div className="flex items-center gap-3 px-4 py-3">
+        {/* Icon */}
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+          style={{ background: "oklch(0.72 0.2 145 / 0.15)" }}
+        >
+          {getTypeIcon(notification.type)}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground truncate">
+            {notification.title}
+          </p>
+          <p className="text-xs text-muted-foreground truncate">
+            {notification.body}
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {notification.type === "message" &&
+            notification.contactId &&
+            onReply && (
+              <button
+                type="button"
+                onClick={() => {
+                  onReply(notification.contactId!);
+                  onDismiss(notification.id);
+                }}
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors"
+                style={{
+                  color: "oklch(0.72 0.2 145)",
+                  background: "oklch(0.72 0.2 145 / 0.12)",
+                }}
+              >
+                Yanıtla
+              </button>
+            )}
+          <button
+            type="button"
+            onClick={() => onDismiss(notification.id)}
+            className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 export function NotificationBanner({
-  notification,
+  bannerQueue,
   onDismiss,
-  onTap,
-}: NotificationBannerProps) {
-  const [visible, setVisible] = useState(false);
-  const dismissRef = useRef(onDismiss);
-  dismissRef.current = onDismiss;
-
-  useEffect(() => {
-    if (!notification) {
-      setVisible(false);
-      return;
-    }
-    setVisible(true);
-    const timer = setTimeout(() => {
-      setVisible(false);
-      setTimeout(() => dismissRef.current(), 350);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [notification]);
-
-  const handleClose = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setVisible(false);
-    setTimeout(() => dismissRef.current(), 350);
-  };
-
-  const handleTap = () => {
-    if (notification && onTap) onTap(notification);
-    setVisible(false);
-    setTimeout(() => dismissRef.current(), 350);
-  };
-
-  if (!notification) return null;
-
-  const avatarCfg = AVATAR_CONFIG[notification.type];
-  const iconColor = AVATAR_ICON_COLOR[notification.type];
-
-  const senderInitial =
-    notification.type === "message" && notification.title
-      ? notification.title[0]
-      : null;
-
+  onReply,
+}: {
+  bannerQueue: NotificationItem[];
+  onDismiss: (id: string) => void;
+  onReply: (contactId: string) => void;
+}) {
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          key={notification.id}
-          initial={{ y: -100, opacity: 0, scale: 0.95 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -100, opacity: 0, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 500, damping: 35 }}
-          drag="y"
-          dragConstraints={{ top: -100, bottom: 0 }}
-          onDragEnd={(_e, info) => {
-            if (info.offset.y < -40) {
-              setVisible(false);
-              setTimeout(() => dismissRef.current(), 350);
-            }
-          }}
-          className="fixed left-0 right-0 z-[100] flex justify-center px-3 cursor-pointer"
-          style={{ top: "61px" }}
-          onClick={handleTap}
-          data-ocid="notification.toast"
-        >
-          <div className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden bg-[oklch(0.11_0.01_145/0.97)] backdrop-blur-xl border border-white/8">
-            {/* Main content */}
-            <div className="flex items-start gap-3 px-4 pt-3 pb-2.5">
-              {/* Avatar circle */}
-              <div
-                className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${avatarCfg.bg} ${iconColor} mt-0.5`}
-              >
-                {senderInitial ? (
-                  <span className="text-sm font-bold uppercase">
-                    {senderInitial}
-                  </span>
-                ) : (
-                  avatarCfg.icon
-                )}
-              </div>
-
-              {/* Text content */}
-              <div className="flex-1 min-w-0 pt-0.5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[14px] font-semibold text-white truncate leading-tight">
-                    {notification.title}
-                  </p>
-                  <span className="text-[10px] text-white/40 flex-shrink-0">
-                    Az önce
-                  </span>
-                </div>
-                <p className="text-[12px] text-white/70 mt-0.5 truncate leading-tight">
-                  {notification.body}
-                </p>
-
-                {/* Reply button for message type */}
-                {notification.type === "message" && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTap();
-                    }}
-                    className="mt-1.5 text-[11px] font-medium text-[oklch(0.72_0.2_145)] hover:text-[oklch(0.82_0.2_145)] transition-colors"
-                  >
-                    Yanıtla
-                  </button>
-                )}
-              </div>
-
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={handleClose}
-                data-ocid="notification.close_button"
-                className="flex-shrink-0 p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors"
-                aria-label="Bildirimi kapat"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Progress bar */}
-            <div className="h-[2px] bg-white/5">
-              <div
-                className="h-full bg-[oklch(0.72_0.2_145)] origin-left"
-                style={{
-                  animation: "notification-progress 5s linear forwards",
-                }}
-              />
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      className="fixed left-0 right-0 z-[100] px-3 pt-1 space-y-1"
+      style={{ top: "calc(env(safe-area-inset-top, 0px) + 56px)" }}
+    >
+      <AnimatePresence mode="sync">
+        {bannerQueue.map((n) => (
+          <BannerItem
+            key={n.id}
+            notification={n}
+            onDismiss={onDismiss}
+            onReply={onReply}
+          />
+        ))}
+      </AnimatePresence>
+    </div>
   );
 }

@@ -10,6 +10,7 @@ import { loadConfig } from "../config";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { StorageClient } from "../utils/StorageClient";
+import { MoodChat } from "./MoodChat";
 import { VoiceMessagePlayer } from "./VoiceMessagePlayer";
 import { VoiceRecorder } from "./VoiceRecorder";
 
@@ -62,6 +63,7 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
   const actor = _actor as any;
   const { identity } = useInternetIdentity();
   const [phase, setPhase] = useState<ChatPhase>("idle");
+  const [showMoodFeed, setShowMoodFeed] = useState(false);
   const [countdown, setCountdown] = useState(30);
   const [sessionId, setSessionId] = useState<bigint | null>(null);
   const [partnerAnonId, setPartnerAnonId] = useState<string | null>(null);
@@ -331,6 +333,10 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
     })),
   ].sort((a, b) => (a.timestamp < b.timestamp ? -1 : 1));
 
+  if (showMoodFeed) {
+    return <MoodChat onBack={() => setShowMoodFeed(false)} />;
+  }
+
   return (
     <div className="h-full flex flex-col">
       <AnimatePresence mode="wait">
@@ -418,6 +424,19 @@ export function RandomChat({ myAnonId }: RandomChatProps) {
                 "Find Stranger"
               )}
             </Button>
+
+            {/* Mood Feed entry */}
+            <button
+              type="button"
+              onClick={() => setShowMoodFeed(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-muted-foreground hover:text-foreground hover:border-white/20 transition-all"
+              data-ocid="random.secondary_button"
+            >
+              🎭 <span>Mood Feed</span>
+              <span className="text-[10px] text-muted-foreground ml-1">
+                Duygu filtreli mesajlar
+              </span>
+            </button>
           </motion.div>
         )}
 
