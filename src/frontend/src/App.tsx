@@ -35,6 +35,7 @@ import { ChatView } from "./components/ChatView";
 import { DiscoverTab } from "./components/DiscoverTab";
 import { EarnTab } from "./components/EarnTab";
 import { P2PMarket } from "./components/P2PMarket";
+import { PaymentSettingsModal } from "./components/PaymentSettingsModal";
 import { PremiumModal } from "./components/PremiumModal";
 import { QRCodeModal } from "./components/QRCodeModal";
 import { QRScannerModal } from "./components/QRScannerModal";
@@ -227,6 +228,7 @@ function ProfileTab({
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showPaymentSettings, setShowPaymentSettings] = useState(false);
 
   const handleShare = async () => {
     try {
@@ -391,6 +393,21 @@ function ProfileTab({
         <p className="text-xs text-muted-foreground">
           Member since {formatDate(user.createdAt)}
         </p>
+        {/* Payment Settings button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowPaymentSettings(true)}
+          data-ocid="profile.open_modal_button"
+          className="mt-4 w-full gap-2 h-10 text-sm border-sky-700/40 bg-sky-900/10 hover:bg-sky-900/20 text-sky-400 hover:text-sky-300"
+        >
+          💳 Payment Settings
+        </Button>
+        <PaymentSettingsModal
+          open={showPaymentSettings}
+          onClose={() => setShowPaymentSettings(false)}
+        />
+
         {/* Admin Panel button */}
         <Button
           variant="outline"

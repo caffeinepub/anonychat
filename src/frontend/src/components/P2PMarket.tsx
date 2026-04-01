@@ -74,6 +74,8 @@ type SellerKind = "user" | "admin";
 type ListingStatusKind = P2PListing["status"]["__kind__"];
 type TradeStatusKind = P2PTrade["status"]["__kind__"];
 
+type PaymentMethodId = "iban" | "revolut" | "wise" | "zen";
+
 interface FakeListing {
   id: string;
   anonId: string;
@@ -86,6 +88,8 @@ interface FakeListing {
   tradeCount: number;
   tags: string[];
   nextDropMs?: number;
+  paymentMethods: PaymentMethodId[];
+  acceptedCountries: string[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -105,6 +109,8 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 4.6,
     tradeCount: 23,
     tags: [],
+    paymentMethods: ["iban"],
+    acceptedCountries: ["TR", "DE"],
   },
   {
     id: "fake-2",
@@ -117,6 +123,8 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 4.7,
     tradeCount: 11,
     tags: [],
+    paymentMethods: ["iban"],
+    acceptedCountries: ["DE", "AT", "CH"],
   },
   {
     id: "fake-3",
@@ -129,6 +137,8 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 4.5,
     tradeCount: 8,
     tags: [],
+    paymentMethods: ["iban", "revolut"],
+    acceptedCountries: ["GB", "NL", "BE"],
   },
   {
     id: "fake-4",
@@ -141,6 +151,8 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 4.9,
     tradeCount: 47,
     tags: ["Limited"],
+    paymentMethods: ["revolut", "wise"],
+    acceptedCountries: ["GB", "NL", "BE", "FR"],
   },
   {
     id: "fake-5",
@@ -153,6 +165,8 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 4.8,
     tradeCount: 31,
     tags: ["Limited"],
+    paymentMethods: ["iban", "wise"],
+    acceptedCountries: ["PL", "UA", "DE"],
   },
   {
     id: "fake-6",
@@ -165,6 +179,8 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 5.0,
     tradeCount: 199,
     tags: ["Official", "Limited"],
+    paymentMethods: ["iban", "revolut", "wise"],
+    acceptedCountries: ["NL", "DE", "TR", "GB", "RU", "BY", "FR", "IT"],
   },
   {
     id: "fake-7",
@@ -177,6 +193,19 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 5.0,
     tradeCount: 199,
     tags: ["Official", "Limited"],
+    paymentMethods: ["iban", "revolut", "wise", "zen"],
+    acceptedCountries: [
+      "NL",
+      "DE",
+      "TR",
+      "GB",
+      "RU",
+      "BY",
+      "FR",
+      "IT",
+      "ES",
+      "PL",
+    ],
   },
   {
     id: "fake-8",
@@ -190,6 +219,8 @@ const FAKE_LISTINGS: FakeListing[] = [
     tradeCount: 199,
     tags: ["Official", "Locked"],
     nextDropMs: BASE_TIME + 3_600_000,
+    paymentMethods: ["iban", "revolut", "wise"],
+    acceptedCountries: ["NL", "DE", "TR", "GB", "RU", "BY", "FR", "IT"],
   },
   {
     id: "fake-9",
@@ -203,6 +234,20 @@ const FAKE_LISTINGS: FakeListing[] = [
     tradeCount: 199,
     tags: ["Official", "Locked"],
     nextDropMs: BASE_TIME + 7_200_000,
+    paymentMethods: ["iban", "revolut", "wise", "zen"],
+    acceptedCountries: [
+      "NL",
+      "DE",
+      "TR",
+      "GB",
+      "RU",
+      "BY",
+      "FR",
+      "IT",
+      "ES",
+      "PL",
+      "UA",
+    ],
   },
   {
     id: "fake-10",
@@ -216,6 +261,25 @@ const FAKE_LISTINGS: FakeListing[] = [
     tradeCount: 199,
     tags: ["Official", "Locked"],
     nextDropMs: BASE_TIME + 10_800_000,
+    paymentMethods: ["iban", "revolut", "wise", "zen"],
+    acceptedCountries: [
+      "NL",
+      "DE",
+      "TR",
+      "GB",
+      "RU",
+      "BY",
+      "FR",
+      "IT",
+      "ES",
+      "PL",
+      "UA",
+      "SE",
+      "NO",
+      "CH",
+      "BE",
+      "AT",
+    ],
   },
   {
     id: "fake-11",
@@ -228,6 +292,8 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 4.6,
     tradeCount: 5,
     tags: [],
+    paymentMethods: ["iban"],
+    acceptedCountries: ["TR"],
   },
   {
     id: "fake-12",
@@ -240,6 +306,8 @@ const FAKE_LISTINGS: FakeListing[] = [
     rating: 4.7,
     tradeCount: 19,
     tags: ["Limited"],
+    paymentMethods: ["revolut", "zen"],
+    acceptedCountries: ["GB", "NL", "SE", "NO"],
   },
 ];
 
@@ -253,6 +321,180 @@ const ACTIVITY_MESSAGES = [
   "👤 User #4829 completed trade",
   "💎 +777 9999 0000 unlocked soon",
 ];
+
+// ─── Payment Method & Country helpers ─────────────────────────────────────────
+
+const PAYMENT_META: Record<
+  string,
+  { icon: string; label: string; colorCls: string; bgCls: string }
+> = {
+  iban: {
+    icon: "🏦",
+    label: "IBAN",
+    colorCls: "text-sky-400",
+    bgCls: "bg-sky-500/15 border-sky-500/30",
+  },
+  revolut: {
+    icon: "🔵",
+    label: "Revolut",
+    colorCls: "text-blue-400",
+    bgCls: "bg-blue-500/15 border-blue-500/30",
+  },
+  wise: {
+    icon: "💚",
+    label: "Wise",
+    colorCls: "text-emerald-400",
+    bgCls: "bg-emerald-500/15 border-emerald-500/30",
+  },
+  zen: {
+    icon: "⚡",
+    label: "Zen",
+    colorCls: "text-yellow-400",
+    bgCls: "bg-yellow-500/15 border-yellow-500/30",
+  },
+};
+
+const COUNTRY_FLAGS: Record<string, string> = {
+  NL: "🇳🇱",
+  DE: "🇩🇪",
+  TR: "🇹🇷",
+  GB: "🇬🇧",
+  RU: "🇷🇺",
+  BY: "🇧🇾",
+  FR: "🇫🇷",
+  IT: "🇮🇹",
+  ES: "🇪🇸",
+  PL: "🇵🇱",
+  UA: "🇺🇦",
+  SE: "🇸🇪",
+  NO: "🇳🇴",
+  CH: "🇨🇭",
+  BE: "🇧🇪",
+  AT: "🇦🇹",
+};
+
+const BUYER_COUNTRIES = [
+  { code: "NL", flag: "🇳🇱", name: "Netherlands" },
+  { code: "DE", flag: "🇩🇪", name: "Germany" },
+  { code: "TR", flag: "🇹🇷", name: "Turkey" },
+  { code: "GB", flag: "🇬🇧", name: "United Kingdom" },
+  { code: "RU", flag: "🇷🇺", name: "Russia" },
+  { code: "BY", flag: "🇧🇾", name: "Belarus" },
+  { code: "FR", flag: "🇫🇷", name: "France" },
+  { code: "IT", flag: "🇮🇹", name: "Italy" },
+  { code: "ES", flag: "🇪🇸", name: "Spain" },
+  { code: "PL", flag: "🇵🇱", name: "Poland" },
+  { code: "UA", flag: "🇺🇦", name: "Ukraine" },
+  { code: "SE", flag: "🇸🇪", name: "Sweden" },
+  { code: "NO", flag: "🇳🇴", name: "Norway" },
+  { code: "CH", flag: "🇨🇭", name: "Switzerland" },
+  { code: "BE", flag: "🇧🇪", name: "Belgium" },
+  { code: "AT", flag: "🇦🇹", name: "Austria" },
+];
+
+function PaymentMethodBadges({ methods }: { methods: string[] }) {
+  return (
+    <div className="flex gap-1 flex-wrap">
+      {methods.map((m) => {
+        const meta = PAYMENT_META[m];
+        if (!meta) return null;
+        return (
+          <span
+            key={m}
+            className={cn(
+              "text-[9px] font-bold px-1.5 py-0.5 rounded-full border",
+              meta.bgCls,
+              meta.colorCls,
+            )}
+          >
+            {meta.icon} {meta.label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function CountryChips({ countries }: { countries: string[] }) {
+  if (countries.length === 0) return null;
+  const shown = countries.slice(0, 5);
+  const rest = countries.length - shown.length;
+  return (
+    <p className="text-[9px] text-muted-foreground/70">
+      {shown.map((c) => `${COUNTRY_FLAGS[c] ?? ""}${c}`).join(" / ")}
+      {rest > 0 && ` +${rest}`}
+    </p>
+  );
+}
+
+type TrustBadge = "fast" | "trusted" | "new";
+
+function SellerTrustBadge({ badge }: { badge: TrustBadge }) {
+  if (badge === "fast")
+    return (
+      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-300 border border-yellow-500/30">
+        ⚡ Fast
+      </span>
+    );
+  if (badge === "trusted")
+    return (
+      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+        ✅ Trusted
+      </span>
+    );
+  return (
+    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-zinc-500/15 text-zinc-400 border border-zinc-500/30">
+      ⚠️ New
+    </span>
+  );
+}
+
+function getTrustBadge(listing: FakeListing, index: number): TrustBadge {
+  if (listing.sellerType === "admin") return "trusted";
+  if (listing.rarity === "ultra" || listing.rarity === "rare") return "trusted";
+  // 30% fast, 20% new, rest trusted based on index
+  const n = index % 10;
+  if (n < 3) return "fast";
+  if (n < 5) return "new";
+  return "trusted";
+}
+
+function bestPaymentMethod(
+  listing: FakeListing,
+  _buyerCountry: string,
+): string | null {
+  if (listing.paymentMethods.length === 0) return null;
+  // Priority order: iban > revolut > wise > zen
+  const priority: PaymentMethodId[] = ["iban", "revolut", "wise", "zen"];
+  for (const p of priority) {
+    if (listing.paymentMethods.includes(p)) return p;
+  }
+  return listing.paymentMethods[0];
+}
+
+// ─── Smart matching filter ────────────────────────────────────────────────────
+
+function matchesFilters(
+  listing: FakeListing,
+  buyerCountry: string,
+  paymentFilter: string,
+  sameCountry: boolean,
+): boolean {
+  // Country filter: if buyer country set, check if it's in acceptedCountries
+  if (buyerCountry && listing.acceptedCountries.length > 0) {
+    if (!listing.acceptedCountries.includes(buyerCountry)) return false;
+  }
+  // Same country only
+  if (sameCountry && buyerCountry) {
+    if (!listing.acceptedCountries.includes(buyerCountry)) return false;
+  }
+  // Payment filter
+  if (paymentFilter !== "all") {
+    if (!listing.paymentMethods.includes(paymentFilter as PaymentMethodId))
+      return false;
+  }
+  return true;
+}
 
 const LISTING_STATUS_CFG: Record<
   ListingStatusKind,
@@ -800,9 +1042,15 @@ interface FakeBuyFlowSheetProps {
   open: boolean;
   onClose: () => void;
   listing: FakeListing | null;
+  buyerCountry: string;
 }
 
-function FakeBuyFlowSheet({ open, onClose, listing }: FakeBuyFlowSheetProps) {
+function FakeBuyFlowSheet({
+  open,
+  onClose,
+  listing,
+  buyerCountry,
+}: FakeBuyFlowSheetProps) {
   const [step, setStep] = useState<FakeBuyStep>(1);
   const [refCode, setRefCode] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -940,6 +1188,78 @@ function FakeBuyFlowSheet({ open, onClose, listing }: FakeBuyFlowSheetProps) {
         {/* ── Step 2: Payment Details ───────────────────────────────────── */}
         {step === 2 && listing && (
           <div className="space-y-4">
+            {/* Anti-scam warning */}
+            <div className="bg-amber-950/40 border border-amber-600/40 rounded-xl p-3.5 flex gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-300 mb-0.5">
+                  ⚠️ Only send money to the payment shown here
+                </p>
+                <p className="text-[10px] text-amber-200/60">
+                  Never use other methods. Scammers may ask for different
+                  payment.
+                </p>
+              </div>
+            </div>
+
+            {/* Matched payment method */}
+            {(() => {
+              const matched = bestPaymentMethod(listing, buyerCountry);
+              const meta = matched ? PAYMENT_META[matched] : null;
+              return meta ? (
+                <div
+                  className={cn("rounded-xl p-4 border space-y-3", meta.bgCls)}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{meta.icon}</span>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                        Send money using selected method
+                      </p>
+                      <p className={cn("text-base font-bold", meta.colorCls)}>
+                        {meta.label}
+                      </p>
+                    </div>
+                  </div>
+                  {matched === "iban" && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                        IBAN
+                      </p>
+                      <p className="font-mono text-sm font-bold tracking-wider bg-black/30 rounded-lg px-3 py-2">
+                        {listing.sellerIban}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Account: {listing.sellerName}
+                        {listing.sellerType === "admin" && " (Admin)"}
+                      </p>
+                    </div>
+                  )}
+                  {(matched === "revolut" ||
+                    matched === "wise" ||
+                    matched === "zen") && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                        {matched === "revolut"
+                          ? "@username / Phone"
+                          : matched === "wise"
+                            ? "Email / @Tag"
+                            : "@Username"}
+                      </p>
+                      <p
+                        className={cn(
+                          "font-mono text-sm font-bold tracking-wider bg-black/30 rounded-lg px-3 py-2",
+                          meta.colorCls,
+                        )}
+                      >
+                        @{listing.sellerName.toLowerCase().replace("#", "")}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : null;
+            })()}
+
             <div className="glass-card rounded-xl p-4 space-y-3">
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">
@@ -1349,6 +1669,15 @@ function FakeListingCard({ listing, index, onBuyClick }: FakeListingCardProps) {
           <p className="text-[10px] text-muted-foreground">
             {listing.tradeCount} trades completed
           </p>
+        </div>
+      </div>
+
+      {/* Payment methods + countries */}
+      <div className="space-y-1.5 mb-3">
+        <PaymentMethodBadges methods={listing.paymentMethods} />
+        <div className="flex items-center justify-between">
+          <CountryChips countries={listing.acceptedCountries} />
+          <SellerTrustBadge badge={getTrustBadge(listing, index)} />
         </div>
       </div>
 
@@ -2493,6 +2822,11 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
   const { actor } = useActor();
   const [activeTab, setActiveTab] = useState<P2PTab>("market");
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>("all");
+  const [buyerCountry, setBuyerCountry] = useState<string>(
+    () => localStorage.getItem("anon_buyer_country") ?? "",
+  );
+  const [paymentFilter, setPaymentFilter] = useState<string>("all");
+  const [sameCountryOnly, setSameCountryOnly] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Market
@@ -2703,8 +3037,8 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
   const realListings = listings.filter((l) => l.sellerAnonId !== myAnonId);
 
   const filteredFakeListings = FAKE_LISTINGS.filter((l) => {
-    if (rarityFilter === "all") return true;
-    return l.rarity === rarityFilter;
+    if (rarityFilter !== "all" && l.rarity !== rarityFilter) return false;
+    return matchesFilters(l, buyerCountry, paymentFilter, sameCountryOnly);
   });
 
   const filteredRealListings = realListings.filter((_l) => {
@@ -2811,6 +3145,83 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
           <TabsContent value="market" className="mt-3 space-y-3">
             {/* Activity Feed */}
             <ActivityFeed />
+
+            {/* Country + Payment filter bar */}
+            <div className="space-y-2">
+              {/* Row 1: country + payment */}
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                {/* Buyer country */}
+                <div className="flex-shrink-0">
+                  <select
+                    value={buyerCountry}
+                    onChange={(e) => {
+                      setBuyerCountry(e.target.value);
+                      localStorage.setItem(
+                        "anon_buyer_country",
+                        e.target.value,
+                      );
+                    }}
+                    className="h-8 px-2 text-[11px] bg-white/5 border border-white/10 rounded-full text-foreground cursor-pointer"
+                    data-ocid="p2p.select"
+                  >
+                    <option value="">🌍 Your Country</option>
+                    {BUYER_COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.code} - {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Payment method */}
+                <div className="flex-shrink-0">
+                  <select
+                    value={paymentFilter}
+                    onChange={(e) => setPaymentFilter(e.target.value)}
+                    className="h-8 px-2 text-[11px] bg-white/5 border border-white/10 rounded-full text-foreground cursor-pointer"
+                    data-ocid="p2p.select"
+                  >
+                    <option value="all">💳 Payment: Any</option>
+                    <option value="iban">🏦 IBAN</option>
+                    <option value="revolut">🔵 Revolut</option>
+                    <option value="wise">💚 Wise</option>
+                    <option value="zen">⚡ Zen</option>
+                  </select>
+                </div>
+              </div>
+              {/* Row 2: toggles */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSameCountryOnly((v) => !v)}
+                  className={cn(
+                    "flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all",
+                    sameCountryOnly
+                      ? "bg-primary/20 text-primary border-primary/40"
+                      : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10",
+                  )}
+                  data-ocid="p2p.toggle"
+                >
+                  🌍 Same country
+                </button>
+                {(buyerCountry ||
+                  paymentFilter !== "all" ||
+                  sameCountryOnly) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBuyerCountry("");
+                      setPaymentFilter("all");
+                      setSameCountryOnly(false);
+                      localStorage.removeItem("anon_buyer_country");
+                    }}
+                    className="flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold border border-red-500/30 bg-red-500/10 text-red-400 transition-all"
+                    data-ocid="p2p.button"
+                  >
+                    ✕ Clear filters
+                  </button>
+                )}
+              </div>
+            </div>
 
             {/* Filter pills */}
             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -2937,10 +3348,31 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
               filteredRealListings.length === 0 &&
               sortedFakeListings.length === 0 && (
                 <div
-                  className="flex flex-col items-center justify-center py-12 text-center"
+                  className="flex flex-col items-center justify-center py-12 text-center space-y-3"
                   data-ocid="p2p.empty_state"
                 >
-                  <Tag className="w-8 h-8 text-muted-foreground/30 mb-3" />
+                  <div className="text-3xl">🌍</div>
+                  <p className="text-sm font-semibold text-foreground/70">
+                    No compatible payment method for your region
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 max-w-[220px]">
+                    Try clearing your filters or selecting a different country.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBuyerCountry("");
+                      setPaymentFilter("all");
+                      setSameCountryOnly(false);
+                      localStorage.removeItem("anon_buyer_country");
+                      setRarityFilter("all");
+                    }}
+                    className="text-xs text-primary border border-primary/30 bg-primary/10 px-3 py-1.5 rounded-full"
+                    data-ocid="p2p.button"
+                  >
+                    Clear all filters
+                  </button>
+                  <Tag className="w-8 h-8 text-muted-foreground/30 mb-3 hidden" />
                   <p className="text-sm text-muted-foreground">
                     No listings match this filter.
                   </p>
@@ -3489,6 +3921,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
           setFakeBuyListing(null);
         }}
         listing={fakeBuyListing}
+        buyerCountry={buyerCountry}
       />
 
       {/* ── Real buy flow sheet ───────────────────────────────────────────── */}

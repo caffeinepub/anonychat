@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
@@ -16,6 +17,7 @@ import {
   CheckCircle,
   Coins,
   Loader2,
+  Lock,
   RefreshCw,
   Settings,
   Shield,
@@ -223,6 +225,22 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
   const [freezingId, setFreezingId] = useState<string | null>(null);
   const [frozenUsers, setFrozenUsers] = useState<Set<string>>(new Set());
   const [unauthorized, setUnauthorized] = useState(false);
+  const [pinUnlocked, setPinUnlocked] = useState(
+    () => sessionStorage.getItem("adminPinUnlocked") === "1",
+  );
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+
+  const handlePinSubmit = () => {
+    if (pinInput === "admin777") {
+      sessionStorage.setItem("adminPinUnlocked", "1");
+      setPinUnlocked(true);
+      setUnauthorized(false);
+    } else {
+      setPinError(true);
+      setTimeout(() => setPinError(false), 1500);
+    }
+  };
 
   const fetchDashboard = useCallback(async () => {
     if (!actor) return;
@@ -359,12 +377,35 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
           </SheetTitle>
         </SheetHeader>
 
-        {unauthorized ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
-            <ShieldOff className="w-12 h-12 text-red-400" />
-            <p className="text-center text-muted-foreground text-sm">
-              Bu panele erişim yetkiniz yok.
-            </p>
+        {unauthorized && !pinUnlocked ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Lock className="w-7 h-7 text-primary" />
+            </div>
+            <div className="text-center">
+              <p className="font-semibold text-base">Admin Girişi</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Devam etmek için admin PIN'ini gir
+              </p>
+            </div>
+            <div className="w-full max-w-xs flex flex-col gap-2">
+              <Input
+                type="password"
+                placeholder="Admin PIN"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
+                className={`text-center tracking-widest ${pinError ? "border-red-500 shake" : ""}`}
+              />
+              {pinError && (
+                <p className="text-xs text-red-400 text-center">
+                  Yanlış PIN. Tekrar dene.
+                </p>
+              )}
+              <Button onClick={handlePinSubmit} className="w-full">
+                Giriş Yap
+              </Button>
+            </div>
           </div>
         ) : (
           <Tabs

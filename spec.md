@@ -1,58 +1,44 @@
-# Anonychat P2P Professional Enhancements
+# Anonychat — IBAN + Alternative Payment P2P System
 
 ## Current State
-P2PMarket.tsx (2918 lines) has a full P2P marketplace with fake listings, buy flow, trade chat, seller ratings, escrow UI, admin system, rarity filters, activity feed, and AnonCash fees. Backend (main.mo) has trade state machine with PENDING/WAITING_PAYMENT/CONFIRMED/COMPLETED/CANCELLED states.
+
+The app has a fully working P2P ID marketplace (P2PMarket.tsx) with:
+- Listing creation, fake listings, admin/user listings, rarity system
+- Buy flow with IBAN payment (admin IBAN: LT913130010131376235), 15-min countdown
+- Seller rating, KYC trust levels, trade chat, dispute system
+- Multi-currency/bank support
+- Admin panel (AdminPanel.tsx) with dispute resolution, user freeze
+- Backend (main.mo) with all P2P endpoints: createListing, buyListing, markPaymentSent, confirmTrade, rejectTrade, cancelTrade, getActiveListings, getMyTrades, openDispute, resolveDispute, getAllTradesAdmin, getAllUsersAdmin, freezeUser, getAdminDashboard
 
 ## Requested Changes (Diff)
 
 ### Add
-1. **KYC Layered Trust System** — 4 trust levels shown on seller cards and profile:
-   - Level 0: Anonymous (0–4 trades) — gray badge
-   - Level 1: Trusted (5–19 trades) — blue badge
-   - Level 2: Experienced (20+ trades + calculated long membership) — gold badge
-   - Level 3: Verified Seller "Onaylı Satıcı" — green badge with checkmark
-   Admin sellers always show Level 3. Each level has a different max trade limit displayed.
-
-2. **Trade Statistics Panel** — a stats card/section in the P2P tab (above or between tabs):
-   - Total sales this week banner: "Bu hafta X ID satıldı 🔥"
-   - Total sales count, average completion time, success/cancel ratio
-   - Animated counter or mini bar chart
-   - Data derived from fake + real trades
-
-3. **P2P Dispute System** — when a trade is in PaymentSent or later state:
-   - "Anlaşmazlık Aç" (Open Dispute) button on trade cards
-   - Opens a dispute modal/sheet with: reason text, evidence upload (text only for now), submit button
-   - Submitted disputes show "Dispute Submitted — Admin reviewing within 24h" status
-   - Admin sees dispute badge on trade; can resolve with "Favor Buyer" or "Favor Seller" decision
-   - Two-sided evidence: both buyer and seller can add their side
-   - Trade status shows "⚠️ Disputed" when dispute is open
-
-4. **Popular Currencies** — payment method selector in buy flow Step 2:
-   - EUR €, USD $, GBP £, TRY ₺, USDT, BTC, ETH, BNB
-   - Small currency icons/flags next to each
-   - Selected currency shown on IBAN display step
-
-5. **Popular Banks** — bank selector in listing creation and buy flow:
-   - Turkey: Ziraat, Garanti BBVA, İş Bankası, Akbank, Yapı Kredi, Halkbank, Vakıfbank, Denizbank
-   - Europe: Deutsche Bank, ING, Revolut, N26, Wise
-   - International: SWIFT/BIC option
-   - Bank logo icons (text-based emoji or letter icons)
+- **Seller Payment Settings** (Profile → Payment Settings section): seller can add multiple payment methods per PAYMENT OBJECT: `{ type: 'iban'|'revolut'|'wise'|'zen', account_name, iban?, phone_or_tag?, bank_name?, country }`
+- **Accepted Countries selector** in Payment Settings: seller picks which countries they accept (NL, DE, TR, GB, RU, BY + more)
+- **Smart Matching Engine**: when buyer opens Market, detect buyer's country (via browser/geolocation or manual selection) and preferred payment method; only show listings where buyer.country ∈ seller.accepted_countries AND payment method is compatible
+- **PaymentSettingsModal** component: full UI for managing multiple payment methods (add/edit/remove), accepted countries multi-select
+- **Buyer country/payment preference selector** on Market page (top bar): "Your country" + "Preferred method" filters
+- **Enhanced listing cards**: show payment method icons (IBAN, Revolut, Wise, Zen), supported country flags/codes ("NL / DE / TR"), trust badges (Fast Seller ⚡, Trusted ✅, New ⚠️)
+- **Smart trade screen**: when buyer clicks BUY, auto-select best payment method based on buyer country + speed preference; show ONLY matched method details (IBAN details OR fintech @tag/phone)
+- **Anti-scam warning banner**: "Only send money to the payment shown here" on trade screen
+- **Fallback state**: if no listings match buyer's region/method, show "No compatible payment method for your region" empty state
+- **Instant sellers filter** + **Same country only toggle** in Market filters
+- **Trust badges** computed from trade stats: Fast Seller ⚡ (avg response < 5min), Trusted ✅ (success rate > 95%), New ⚠️ (< 5 trades)
 
 ### Modify
-- Seller cards in FAKE_LISTINGS and real listings: show KYC level badge next to rating
-- Trade cards in "My Trades" tab: add dispute button for eligible trades
-- Buy flow Step 2: add currency selector
-- Create listing form: add bank selector
+- P2PMarket.tsx: add country filter bar at top, integrate smart matching to filter shown listings, update listing cards to show payment method icons + country codes, update buy flow to auto-select matched payment method
+- Profile/App.tsx: add "Payment Settings" entry that opens PaymentSettingsModal
+- Backend (main.mo): add `setPaymentMethods`, `getPaymentMethods`, `setAcceptedCountries`, `getAcceptedCountries` endpoints; store seller payment methods and accepted countries in stable vars
 
 ### Remove
-- Nothing removed
+- Nothing removed — all existing features preserved
 
 ## Implementation Plan
-1. Add KYC level helper function: `getKycLevel(tradeCount, joinedDaysAgo)` → returns level 0-3 with label/color
-2. Add KYC badge component displayed on listing cards
-3. Add `TradeStatsPanel` component above the tabs showing weekly banner + stats
-4. Add `DisputeModal` component with reason/evidence form and dispute status display
-5. Add dispute state to fake trades for UI demo
-6. Add currency list constant and selector component for buy flow Step 2
-7. Add bank list constant and selector for listing creation
-8. Wire all into P2PMarket.tsx without breaking existing flows
+
+1. **Backend**: Add stable vars for seller payment methods (HashMap Principal → [PaymentMethod]) and accepted countries (HashMap Principal → [Text]). Add query/update endpoints: `setPaymentMethods`, `getPaymentMethods`, `setAcceptedCountries`, `getAcceptedCountries`.
+2. **PaymentSettingsModal.tsx**: New component. Form to add payment method (type selector: IBAN/Revolut/Wise/Zen, fields change based on type). List of existing methods with delete. Country multi-select with flags.
+3. **Smart matching in P2PMarket**: Add buyer country/method state at top. Filter fake + real listings based on match. Show fallback if empty. Add "Instant only" + "Same country" toggles.
+4. **Enhanced listing card**: payment method icons row, country code chips, trust badge (computed from seller stats).
+5. **Trade screen update**: detect best payment method for buyer, show only relevant details (IBAN block vs fintech block), show anti-scam warning.
+6. **Profile integration**: add Payment Settings button that opens PaymentSettingsModal.
+7. **Validate**: lint + typecheck + build.
