@@ -265,6 +265,15 @@ actor {
   stable let disputeEvidence = Map.empty<Nat, Text>();
   let COMMISSION_RATE_BPS : Nat = 200; // 2% in basis points
 
+  // --- ID Slot System ---
+  stable let userOwnedIds = Map.empty<Principal, [Text]>();
+  stable let idLastActivity = Map.empty<Text, Int>();
+  stable let userPremiumSlots = Map.empty<Principal, Bool>();
+  let ID_SLOT_BASE : Nat = 3;
+  let ID_SLOT_HARD_CAP : Nat = 10;
+  let ID_SLOT_PREMIUM_BONUS : Nat = 5;
+  let ID_INACTIVE_NS : Int = 2_592_000_000_000_000; // 30 days
+
 
 
   func padTo4(n : Nat) : Text {
@@ -408,6 +417,9 @@ actor {
       isOnline = true;
     };
     userProfiles.add(caller, profile);
+    // Initialize ID slot ownership
+    userOwnedIds.add(caller, [anonymousId]);
+    idLastActivity.add(anonymousId, Time.now());
     newUser;
   };
 
@@ -1761,6 +1773,131 @@ actor {
       Runtime.trap("Unauthorized: Admin only");
     };
     systemCommissionBalance
+  };
+
+
+  // =====================
+  // ID SLOT SYSTEM
+  // =====================
+
+  func getMaxSlots(caller : Principal) : Nat {
+    // Referral bonus: +1 per invited user (from userReferrals)
+    let refCount = switch (userReferrals.get(caller)) {
+      case (?arr) { arr.size() };
+      case (null) { 0 };
+    };
+    let referralBonus = if (refCount > 0) 1 else 0;
+
+    // Activity bonus: +1 if sent >= ACTIVE_MSG_THRESHOLD messages
+    let msgCount = switch (userMsgCount.get(caller)) {
+      case (?n) { n };
+      case (null) { 0 };
+    };
+    let activityBonus = if (msgCount >= ACTIVE_MSG_THRESHOLD) 1 else 0;
+
+    // Premium bonus
+    let premiumBonus = switch (userPremiumSlots.get(caller)) {
+      case (?true) { ID_SLOT_PREMIUM_BONUS };
+      case (_) { 0 };
+    };
+
+    let total = ID_SLOT_BASE + referralBonus + activityBonus + premiumBonus;
+    if (total > ID_SLOT_HARD_CAP) ID_SLOT_HARD_CAP else total;
+  };
+
+  public type IdSlotInfo = {
+    ownedIds : [Text];
+    maxSlots : Nat;
+    referralBonus : Nat;
+    activityBonus : Nat;
+    premiumBonus : Nat;
+    inactiveIds : [Text];
+  };
+
+  public query ({ caller }) func getIdSlotInfo() : async IdSlotInfo {
+    let owned = switch (userOwnedIds.get(caller)) {
+      case (?arr) { arr };
+      case (null) { [] };
+    };
+    let refCount = switch (userReferrals.get(caller)) {
+      case (?arr) { arr.size() };
+      case (null) { 0 };
+    };
+    let referralBonus = if (refCount > 0) 1 else 0;
+    let msgCount = switch (userMsgCount.get(caller)) {
+      case (?n) { n };
+      case (null) { 0 };
+    };
+    let activityBonus = if (msgCount >= ACTIVE_MSG_THRESHOLD) 1 else 0;
+    let premiumBonus = switch (userPremiumSlots.get(caller)) {
+      case (?true) { ID_SLOT_PREMIUM_BONUS };
+      case (_) { 0 };
+    };
+    let now = Time.now();
+    let inactive = owned.filter(func(id : Text) : Bool {
+      switch (idLastActivity.get(id)) {
+        case (?last) { (now - last) > ID_INACTIVE_NS };
+        case (null) { false };
+      };
+    });
+    {
+      ownedIds = owned;
+      maxSlots = getMaxSlots(caller);
+      referralBonus = referralBonus;
+      activityBonus = activityBonus;
+      premiumBonus = premiumBonus;
+      inactiveIds = inactive;
+    };
+  };
+
+  public shared ({ caller }) func createAdditionalId() : async Text {
+    let maxSlots = getMaxSlots(caller);
+    let owned = switch (userOwnedIds.get(caller)) {
+      case (?arr) { arr };
+      case (null) { [] };
+    };
+    if (owned.size() >= maxSlots) {
+      Runtime.trap("ID slot limit reached");
+    };
+    let newId = await generateUniqueId();
+    anonIdToPrincipal.add(newId, caller);
+    userOwnedIds.add(caller, appendTextArr(owned, newId));
+    idLastActivity.add(newId, Time.now());
+    newId;
+  };
+
+  public shared ({ caller }) func reclaimId(anonId : Text) : async () {
+    let owned = switch (userOwnedIds.get(caller)) {
+      case (?arr) { arr };
+      case (null) { Runtime.trap("No IDs owned") };
+    };
+    // Cannot reclaim primary ID (first one)
+    switch (users.get(caller)) {
+      case (?user) {
+        if (user.anonymousId == anonId) {
+          Runtime.trap("Cannot reclaim primary ID");
+        };
+      };
+      case (null) {};
+    };
+    let filtered = owned.filter(func(id : Text) : Bool { id != anonId });
+    userOwnedIds.add(caller, filtered);
+    // Remove from anonIdToPrincipal so it can be reused
+    anonIdToPrincipal.remove(anonId);
+    usedIds.remove(anonId);
+  };
+
+  public shared ({ caller }) func markIdActive(anonId : Text) : async () {
+    idLastActivity.add(anonId, Time.now());
+  };
+
+  public shared ({ caller }) func unlockPremiumSlots() : async () {
+    userPremiumSlots.add(caller, true);
+  };
+
+  func appendTextArr(arr : [Text], t : Text) : [Text] {
+    let size = arr.size();
+    Array.tabulate<Text>(size + 1, func(i) { if (i < size) arr[i] else t });
   };
 
 };

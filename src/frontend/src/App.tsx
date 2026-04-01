@@ -47,6 +47,7 @@ import { ChatView } from "./components/ChatView";
 import { DiscoverTab } from "./components/DiscoverTab";
 import { EarnTab } from "./components/EarnTab";
 import { GiftAnimation } from "./components/GiftAnimation";
+import { IDSlotsWidget } from "./components/IDSlotsWidget";
 import { NotificationBanner } from "./components/NotificationBanner";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { P2PMarket } from "./components/P2PMarket";
@@ -447,6 +448,8 @@ function ProfileTab({
         </Button>
         <AdminPanel open={showAdmin} onClose={() => setShowAdmin(false)} />
       </div>
+      {/* ID Slot System */}
+      <IDSlotsWidget primaryId={user.anonymousId} />
     </motion.div>
   );
 }
