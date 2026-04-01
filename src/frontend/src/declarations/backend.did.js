@@ -74,6 +74,75 @@ export const VoiceMessage = IDL.Record({
   'senderId' : IDL.Text,
 });
 
+export const ListingStatus = IDL.Variant({
+  'Active': IDL.Null,
+  'Locked': IDL.Null,
+  'Sold': IDL.Null,
+  'Cancelled': IDL.Null,
+});
+export const TradeStatus = IDL.Variant({
+  'Pending': IDL.Null,
+  'PaymentSent': IDL.Null,
+  'Confirmed': IDL.Null,
+  'Rejected': IDL.Null,
+  'Disputed': IDL.Null,
+  'Cancelled': IDL.Null,
+});
+export const P2PListing = IDL.Record({
+  'id': IDL.Nat,
+  'sellerPrincipal': IDL.Principal,
+  'sellerAnonId': IDL.Text,
+  'listedAnonId': IDL.Text,
+  'price': IDL.Text,
+  'iban': IDL.Text,
+  'status': ListingStatus,
+  'createdAt': IDL.Int,
+});
+export const P2PTrade = IDL.Record({
+  'id': IDL.Nat,
+  'listingId': IDL.Nat,
+  'buyerPrincipal': IDL.Principal,
+  'buyerAnonId': IDL.Text,
+  'sellerPrincipal': IDL.Principal,
+  'sellerAnonId': IDL.Text,
+  'listedAnonId': IDL.Text,
+  'price': IDL.Text,
+  'iban': IDL.Text,
+  'status': TradeStatus,
+  'proofScreenshotHash': IDL.Opt(IDL.Text),
+  'referenceNumber': IDL.Opt(IDL.Text),
+  'createdAt': IDL.Int,
+  'paymentSentAt': IDL.Opt(IDL.Int),
+});
+export const TradeReview = IDL.Record({
+  'id': IDL.Nat,
+  'tradeId': IDL.Nat,
+  'reviewerPrincipal': IDL.Principal,
+  'targetPrincipal': IDL.Principal,
+  'targetAnonId': IDL.Text,
+  'stars': IDL.Nat,
+  'comment': IDL.Text,
+  'createdAt': IDL.Int,
+});
+export const TradeMessage = IDL.Record({
+  'id': IDL.Nat,
+  'tradeId': IDL.Nat,
+  'senderPrincipal': IDL.Principal,
+  'senderAnonId': IDL.Text,
+  'content': IDL.Text,
+  'createdAt': IDL.Int,
+});
+export const AdminDashboard = IDL.Record({
+  'totalUsers': IDL.Nat,
+  'totalTrades': IDL.Nat,
+  'activeTrades': IDL.Nat,
+  'completedTrades': IDL.Nat,
+  'disputedTrades': IDL.Nat,
+  'commissionBalance': IDL.Nat,
+  'totalListings': IDL.Nat,
+  'activeListings': IDL.Nat,
+});
+
 export const idlService = IDL.Service({
   '_caffeineStorageBlobIsLive' : IDL.Func(
       [IDL.Vec(IDL.Nat8)],
@@ -134,6 +203,30 @@ export const idlService = IDL.Service({
   'setOnline' : IDL.Func([IDL.Bool], [], []),
   'unblockUser' : IDL.Func([IDL.Text], [], []),
   'updateUsername' : IDL.Func([IDL.Text], [], []),
+  'createListing': IDL.Func([IDL.Text, IDL.Text], [P2PListing], []),
+  'getActiveListings': IDL.Func([], [IDL.Vec(P2PListing)], ['query']),
+  'getMyListings': IDL.Func([], [IDL.Vec(P2PListing)], ['query']),
+  'cancelListing': IDL.Func([IDL.Nat], [], []),
+  'buyListing': IDL.Func([IDL.Nat], [P2PTrade], []),
+  'markPaymentSent': IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [], []),
+  'confirmTrade': IDL.Func([IDL.Nat], [], []),
+  'rejectTrade': IDL.Func([IDL.Nat], [], []),
+  'cancelTrade': IDL.Func([IDL.Nat], [], []),
+  'getMyTrades': IDL.Func([], [IDL.Vec(P2PTrade)], ['query']),
+  'getTrade': IDL.Func([IDL.Nat], [IDL.Opt(P2PTrade)], ['query']),
+  'cancelExpiredTrades': IDL.Func([], [IDL.Nat], []),
+  'submitTradeReview': IDL.Func([IDL.Nat, IDL.Nat, IDL.Text], [TradeReview], []),
+  'getSellerReviews': IDL.Func([IDL.Text], [IDL.Vec(TradeReview)], ['query']),
+  'sendTradeMessage': IDL.Func([IDL.Nat, IDL.Text], [TradeMessage], []),
+  'getTradeMessages': IDL.Func([IDL.Nat], [IDL.Vec(TradeMessage)], ['query']),
+  'openDispute': IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'resolveDispute': IDL.Func([IDL.Nat, IDL.Bool], [], []),
+  'getAllTradesAdmin': IDL.Func([], [IDL.Vec(P2PTrade)], ['query']),
+  'getAllUsersAdmin': IDL.Func([], [IDL.Vec(IDL.Record({'id': IDL.Nat, 'username': IDL.Opt(IDL.Text), 'createdAt': IDL.Int, 'isOnline': IDL.Bool, 'anonymousId': IDL.Text}))], ['query']),
+  'freezeUser': IDL.Func([IDL.Principal], [], []),
+  'unfreezeUser': IDL.Func([IDL.Principal], [], []),
+  'getAdminDashboard': IDL.Func([], [AdminDashboard], ['query']),
+  'getDisputedTrades': IDL.Func([], [IDL.Vec(P2PTrade)], ['query']),
 });
 
 export const idlInitArgs = [];
@@ -208,6 +301,75 @@ export const idlFactory = ({ IDL }) => {
     'senderId' : IDL.Text,
   });
   
+  const ListingStatus = IDL.Variant({
+    'Active': IDL.Null,
+    'Locked': IDL.Null,
+    'Sold': IDL.Null,
+    'Cancelled': IDL.Null,
+  });
+  const TradeStatus = IDL.Variant({
+    'Pending': IDL.Null,
+    'PaymentSent': IDL.Null,
+    'Confirmed': IDL.Null,
+    'Rejected': IDL.Null,
+    'Disputed': IDL.Null,
+    'Cancelled': IDL.Null,
+  });
+  const P2PListing = IDL.Record({
+    'id': IDL.Nat,
+    'sellerPrincipal': IDL.Principal,
+    'sellerAnonId': IDL.Text,
+    'listedAnonId': IDL.Text,
+    'price': IDL.Text,
+    'iban': IDL.Text,
+    'status': ListingStatus,
+    'createdAt': IDL.Int,
+  });
+  const P2PTrade = IDL.Record({
+    'id': IDL.Nat,
+    'listingId': IDL.Nat,
+    'buyerPrincipal': IDL.Principal,
+    'buyerAnonId': IDL.Text,
+    'sellerPrincipal': IDL.Principal,
+    'sellerAnonId': IDL.Text,
+    'listedAnonId': IDL.Text,
+    'price': IDL.Text,
+    'iban': IDL.Text,
+    'status': TradeStatus,
+    'proofScreenshotHash': IDL.Opt(IDL.Text),
+    'referenceNumber': IDL.Opt(IDL.Text),
+    'createdAt': IDL.Int,
+    'paymentSentAt': IDL.Opt(IDL.Int),
+  });
+  const TradeReview = IDL.Record({
+    'id': IDL.Nat,
+    'tradeId': IDL.Nat,
+    'reviewerPrincipal': IDL.Principal,
+    'targetPrincipal': IDL.Principal,
+    'targetAnonId': IDL.Text,
+    'stars': IDL.Nat,
+    'comment': IDL.Text,
+    'createdAt': IDL.Int,
+  });
+  const TradeMessage = IDL.Record({
+    'id': IDL.Nat,
+    'tradeId': IDL.Nat,
+    'senderPrincipal': IDL.Principal,
+    'senderAnonId': IDL.Text,
+    'content': IDL.Text,
+    'createdAt': IDL.Int,
+  });
+  const AdminDashboard = IDL.Record({
+    'totalUsers': IDL.Nat,
+    'totalTrades': IDL.Nat,
+    'activeTrades': IDL.Nat,
+    'completedTrades': IDL.Nat,
+    'disputedTrades': IDL.Nat,
+    'commissionBalance': IDL.Nat,
+    'totalListings': IDL.Nat,
+    'activeListings': IDL.Nat,
+  });
+
   return IDL.Service({
     '_caffeineStorageBlobIsLive' : IDL.Func(
         [IDL.Vec(IDL.Nat8)],
@@ -272,6 +434,30 @@ export const idlFactory = ({ IDL }) => {
     'setOnline' : IDL.Func([IDL.Bool], [], []),
     'unblockUser' : IDL.Func([IDL.Text], [], []),
     'updateUsername' : IDL.Func([IDL.Text], [], []),
+    'createListing': IDL.Func([IDL.Text, IDL.Text], [P2PListing], []),
+    'getActiveListings': IDL.Func([], [IDL.Vec(P2PListing)], ['query']),
+    'getMyListings': IDL.Func([], [IDL.Vec(P2PListing)], ['query']),
+    'cancelListing': IDL.Func([IDL.Nat], [], []),
+    'buyListing': IDL.Func([IDL.Nat], [P2PTrade], []),
+    'markPaymentSent': IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [], []),
+    'confirmTrade': IDL.Func([IDL.Nat], [], []),
+    'rejectTrade': IDL.Func([IDL.Nat], [], []),
+    'cancelTrade': IDL.Func([IDL.Nat], [], []),
+    'getMyTrades': IDL.Func([], [IDL.Vec(P2PTrade)], ['query']),
+    'getTrade': IDL.Func([IDL.Nat], [IDL.Opt(P2PTrade)], ['query']),
+    'cancelExpiredTrades': IDL.Func([], [IDL.Nat], []),
+    'submitTradeReview': IDL.Func([IDL.Nat, IDL.Nat, IDL.Text], [TradeReview], []),
+    'getSellerReviews': IDL.Func([IDL.Text], [IDL.Vec(TradeReview)], ['query']),
+    'sendTradeMessage': IDL.Func([IDL.Nat, IDL.Text], [TradeMessage], []),
+    'getTradeMessages': IDL.Func([IDL.Nat], [IDL.Vec(TradeMessage)], ['query']),
+    'openDispute': IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'resolveDispute': IDL.Func([IDL.Nat, IDL.Bool], [], []),
+    'getAllTradesAdmin': IDL.Func([], [IDL.Vec(P2PTrade)], ['query']),
+    'getAllUsersAdmin': IDL.Func([], [IDL.Vec(IDL.Record({'id': IDL.Nat, 'username': IDL.Opt(IDL.Text), 'createdAt': IDL.Int, 'isOnline': IDL.Bool, 'anonymousId': IDL.Text}))], ['query']),
+    'freezeUser': IDL.Func([IDL.Principal], [], []),
+    'unfreezeUser': IDL.Func([IDL.Principal], [], []),
+    'getAdminDashboard': IDL.Func([], [AdminDashboard], ['query']),
+    'getDisputedTrades': IDL.Func([], [IDL.Vec(P2PTrade)], ['query']),
   });
 };
 

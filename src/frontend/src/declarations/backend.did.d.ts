@@ -73,6 +73,63 @@ export interface _CaffeineStorageRefillResult {
   'success' : [] | [boolean],
   'topped_up_amount' : [] | [bigint],
 }
+export type ListingStatus = { 'Active': null } | { 'Locked': null } | { 'Sold': null } | { 'Cancelled': null };
+export type TradeStatus = { 'Pending': null } | { 'PaymentSent': null } | { 'Confirmed': null } | { 'Rejected': null } | { 'Disputed': null } | { 'Cancelled': null };
+export interface P2PListing {
+  id: bigint;
+  sellerPrincipal: Principal;
+  sellerAnonId: string;
+  listedAnonId: string;
+  price: string;
+  iban: string;
+  status: ListingStatus;
+  createdAt: bigint;
+}
+export interface P2PTrade {
+  id: bigint;
+  listingId: bigint;
+  buyerPrincipal: Principal;
+  buyerAnonId: string;
+  sellerPrincipal: Principal;
+  sellerAnonId: string;
+  listedAnonId: string;
+  price: string;
+  iban: string;
+  status: TradeStatus;
+  proofScreenshotHash: [] | [string];
+  referenceNumber: [] | [string];
+  createdAt: bigint;
+  paymentSentAt: [] | [bigint];
+}
+export interface TradeReview {
+  id: bigint;
+  tradeId: bigint;
+  reviewerPrincipal: Principal;
+  targetPrincipal: Principal;
+  targetAnonId: string;
+  stars: bigint;
+  comment: string;
+  createdAt: bigint;
+}
+export interface TradeMessage {
+  id: bigint;
+  tradeId: bigint;
+  senderPrincipal: Principal;
+  senderAnonId: string;
+  content: string;
+  createdAt: bigint;
+}
+export interface AdminDashboard {
+  totalUsers: bigint;
+  totalTrades: bigint;
+  activeTrades: bigint;
+  completedTrades: bigint;
+  disputedTrades: bigint;
+  commissionBalance: bigint;
+  totalListings: bigint;
+  activeListings: bigint;
+}
+
 export interface _SERVICE {
   '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
   '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
@@ -118,6 +175,30 @@ export interface _SERVICE {
   'setOnline' : ActorMethod<[boolean], undefined>,
   'unblockUser' : ActorMethod<[string], undefined>,
   'updateUsername' : ActorMethod<[string], undefined>,
+  'createListing': ActorMethod<[string, string], P2PListing>;
+  'getActiveListings': ActorMethod<[], Array<P2PListing>>;
+  'getMyListings': ActorMethod<[], Array<P2PListing>>;
+  'cancelListing': ActorMethod<[bigint], undefined>;
+  'buyListing': ActorMethod<[bigint], P2PTrade>;
+  'markPaymentSent': ActorMethod<[bigint, string, string], undefined>;
+  'confirmTrade': ActorMethod<[bigint], undefined>;
+  'rejectTrade': ActorMethod<[bigint], undefined>;
+  'cancelTrade': ActorMethod<[bigint], undefined>;
+  'getMyTrades': ActorMethod<[], Array<P2PTrade>>;
+  'getTrade': ActorMethod<[bigint], [] | [P2PTrade]>;
+  'cancelExpiredTrades': ActorMethod<[], bigint>;
+  'submitTradeReview': ActorMethod<[bigint, bigint, string], TradeReview>;
+  'getSellerReviews': ActorMethod<[string], Array<TradeReview>>;
+  'sendTradeMessage': ActorMethod<[bigint, string], TradeMessage>;
+  'getTradeMessages': ActorMethod<[bigint], Array<TradeMessage>>;
+  'openDispute': ActorMethod<[bigint, string], undefined>;
+  'resolveDispute': ActorMethod<[bigint, boolean], undefined>;
+  'getAllTradesAdmin': ActorMethod<[], Array<P2PTrade>>;
+  'getAllUsersAdmin': ActorMethod<[], Array<any>>;
+  'freezeUser': ActorMethod<[Principal], undefined>;
+  'unfreezeUser': ActorMethod<[Principal], undefined>;
+  'getAdminDashboard': ActorMethod<[], AdminDashboard>;
+  'getDisputedTrades': ActorMethod<[], Array<P2PTrade>>;
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
