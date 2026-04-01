@@ -204,36 +204,6 @@ export interface backendInterface {
     updateUsername(username: string): Promise<void>;
 }
 import type { MatchStatus as _MatchStatus, Message as _Message, RandomSession as _RandomSession, User as _User, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
-// Helper to convert raw Candid variant to __kind__ format
-function fromCandidListingStatus(v: any): any {
-  if ('Active' in v) return { __kind__: 'Active', Active: null };
-  if ('Locked' in v) return { __kind__: 'Locked', Locked: null };
-  if ('Sold' in v) return { __kind__: 'Sold', Sold: null };
-  if ('Cancelled' in v) return { __kind__: 'Cancelled', Cancelled: null };
-  return v;
-}
-function fromCandidTradeStatus(v: any): any {
-  if ('Pending' in v) return { __kind__: 'Pending', Pending: null };
-  if ('PaymentSent' in v) return { __kind__: 'PaymentSent', PaymentSent: null };
-  if ('Confirmed' in v) return { __kind__: 'Confirmed', Confirmed: null };
-  if ('Rejected' in v) return { __kind__: 'Rejected', Rejected: null };
-  if ('Disputed' in v) return { __kind__: 'Disputed', Disputed: null };
-  if ('Cancelled' in v) return { __kind__: 'Cancelled', Cancelled: null };
-  return v;
-}
-function fromCandidP2PListing(v: any): any {
-  return { ...v, status: fromCandidListingStatus(v.status), proofScreenshotHash: undefined, referenceNumber: undefined };
-}
-function fromCandidP2PTrade(v: any): any {
-  return {
-    ...v,
-    status: fromCandidTradeStatus(v.status),
-    proofScreenshotHash: v.proofScreenshotHash?.length ? v.proofScreenshotHash[0] : undefined,
-    referenceNumber: v.referenceNumber?.length ? v.referenceNumber[0] : undefined,
-    paymentSentAt: v.paymentSentAt?.length ? v.paymentSentAt[0] : undefined,
-  };
-}
-
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _caffeineStorageBlobIsLive(arg0: Uint8Array): Promise<boolean> {
@@ -726,119 +696,6 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-
-  async createListing(price: string, iban: string): Promise<any> {
-    try {
-      const result = await (this.actor as any).createListing(price, iban);
-      return fromCandidP2PListing(result);
-    } catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getActiveListings(): Promise<any[]> {
-    try {
-      const result = await (this.actor as any).getActiveListings();
-      return result.map(fromCandidP2PListing);
-    } catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getMyListings(): Promise<any[]> {
-    try {
-      const result = await (this.actor as any).getMyListings();
-      return result.map(fromCandidP2PListing);
-    } catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async cancelListing(listingId: bigint): Promise<void> {
-    try { await (this.actor as any).cancelListing(listingId); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async buyListing(listingId: bigint): Promise<any> {
-    try {
-      const result = await (this.actor as any).buyListing(listingId);
-      return fromCandidP2PTrade(result);
-    } catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async markPaymentSent(tradeId: bigint, referenceNumber: string, screenshotHash: string): Promise<void> {
-    try { await (this.actor as any).markPaymentSent(tradeId, referenceNumber, screenshotHash); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async confirmTrade(tradeId: bigint): Promise<void> {
-    try { await (this.actor as any).confirmTrade(tradeId); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async rejectTrade(tradeId: bigint): Promise<void> {
-    try { await (this.actor as any).rejectTrade(tradeId); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async cancelTrade(tradeId: bigint): Promise<void> {
-    try { await (this.actor as any).cancelTrade(tradeId); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getMyTrades(): Promise<any[]> {
-    try {
-      const result = await (this.actor as any).getMyTrades();
-      return result.map(fromCandidP2PTrade);
-    } catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getTrade(tradeId: bigint): Promise<any> {
-    try {
-      const result = await (this.actor as any).getTrade(tradeId);
-      return result.length ? fromCandidP2PTrade(result[0]) : null;
-    } catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async cancelExpiredTrades(): Promise<bigint> {
-    try { return await (this.actor as any).cancelExpiredTrades(); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async submitTradeReview(tradeId: bigint, stars: bigint, comment: string): Promise<any> {
-    try { return await (this.actor as any).submitTradeReview(tradeId, stars, comment); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getSellerReviews(sellerAnonId: string): Promise<any[]> {
-    try { return await (this.actor as any).getSellerReviews(sellerAnonId); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async sendTradeMessage(tradeId: bigint, content: string): Promise<any> {
-    try { return await (this.actor as any).sendTradeMessage(tradeId, content); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getTradeMessages(tradeId: bigint): Promise<any[]> {
-    try { return await (this.actor as any).getTradeMessages(tradeId); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async openDispute(tradeId: bigint, evidence: string): Promise<void> {
-    try { await (this.actor as any).openDispute(tradeId, evidence); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async resolveDispute(tradeId: bigint, favorBuyer: boolean): Promise<void> {
-    try { await (this.actor as any).resolveDispute(tradeId, favorBuyer); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getAllTradesAdmin(): Promise<any[]> {
-    try {
-      const result = await (this.actor as any).getAllTradesAdmin();
-      return result.map(fromCandidP2PTrade);
-    } catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getAllUsersAdmin(): Promise<any[]> {
-    try { return await (this.actor as any).getAllUsersAdmin(); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async freezeUser(target: any): Promise<void> {
-    try { await (this.actor as any).freezeUser(target); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async unfreezeUser(target: any): Promise<void> {
-    try { await (this.actor as any).unfreezeUser(target); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getAdminDashboard(): Promise<any> {
-    try { return await (this.actor as any).getAdminDashboard(); }
-    catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
-  async getDisputedTrades(): Promise<any[]> {
-    try {
-      const result = await (this.actor as any).getDisputedTrades();
-      return result.map(fromCandidP2PTrade);
-    } catch(e) { if (this.processError) this.processError(e); throw e; }
-  }
 }
 function from_candid_MatchStatus_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _MatchStatus): MatchStatus {
     return from_candid_variant_n11(_uploadFile, _downloadFile, value);
@@ -997,6 +854,72 @@ function from_candid_variant_n11(_uploadFile: (file: ExternalBlob) => Promise<Ui
     } : "TimedOut" in value ? {
         __kind__: "TimedOut",
         TimedOut: value.TimedOut
+    } : value;
+}
+function from_candid_variant_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    admin: null;
+} | {
+    user: null;
+} | {
+    guest: null;
+}): UserRole {
+    return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
+}
+function from_candid_vec_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Message>): Array<Message> {
+    return value.map((x)=>from_candid_Message_n19(_uploadFile, _downloadFile, x));
+}
+function from_candid_vec_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_User>): Array<User> {
+    return value.map((x)=>from_candid_User_n24(_uploadFile, _downloadFile, x));
+}
+function to_candid_UserProfile_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserProfile): _UserProfile {
+    return to_candid_record_n28(_uploadFile, _downloadFile, value);
+}
+function to_candid_UserRole_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
+    return to_candid_variant_n9(_uploadFile, _downloadFile, value);
+}
+function to_candid__CaffeineStorageRefillInformation_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CaffeineStorageRefillInformation): __CaffeineStorageRefillInformation {
+    return to_candid_record_n3(_uploadFile, _downloadFile, value);
+}
+function to_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CaffeineStorageRefillInformation | null): [] | [__CaffeineStorageRefillInformation] {
+    return value === null ? candid_none() : candid_some(to_candid__CaffeineStorageRefillInformation_n2(_uploadFile, _downloadFile, value));
+}
+function to_candid_record_n28(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    username?: string;
+    isOnline: boolean;
+    anonymousId: string;
+}): {
+    username: [] | [string];
+    isOnline: boolean;
+    anonymousId: string;
+} {
+    return {
+        username: value.username ? candid_some(value.username) : candid_none(),
+        isOnline: value.isOnline,
+        anonymousId: value.anonymousId
+    };
+}
+function to_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    proposed_top_up_amount?: bigint;
+}): {
+    proposed_top_up_amount: [] | [bigint];
+} {
+    return {
+        proposed_top_up_amount: value.proposed_top_up_amount ? candid_some(value.proposed_top_up_amount) : candid_none()
+    };
+}
+function to_candid_variant_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
+    admin: null;
+} | {
+    user: null;
+} | {
+    guest: null;
+} {
+    return value == UserRole.admin ? {
+        admin: null
+    } : value == UserRole.user ? {
+        user: null
+    } : value == UserRole.guest ? {
+        guest: null
     } : value;
 }
 export interface CreateActorOptions {
