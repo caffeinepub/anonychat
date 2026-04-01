@@ -30,6 +30,7 @@ export interface RandomSession {
     user2AnonId: string;
 }
 export interface User {
+    principal: import("@icp-sdk/core/principal").Principal;
     id: bigint;
     username?: string;
     createdAt: bigint;
@@ -265,4 +266,27 @@ export interface backendInterface {
     // Trade Chat
     sendTradeMessage(tradeId: bigint, content: string): Promise<TradeMessage>;
     getTradeMessages(tradeId: bigint): Promise<Array<TradeMessage>>;
+    // Admin
+    getAllTradesAdmin(): Promise<Array<P2PTrade>>;
+    getAllUsersAdmin(): Promise<Array<User>>;
+    freezeUser(target: Principal): Promise<void>;
+    unfreezeUser(target: Principal): Promise<void>;
+    isUserFrozen(target: Principal): Promise<boolean>;
+    getAdminDashboard(): Promise<AdminDashboard>;
+    resolveDispute(tradeId: bigint, favorBuyer: boolean): Promise<void>;
+    getDisputedTrades(): Promise<Array<P2PTrade>>;
+    getDisputeEvidence(tradeId: bigint): Promise<[] | [string]>;
+    getCommissionBalance(): Promise<bigint>;
+    openDispute(tradeId: bigint, evidence: string): Promise<void>;
+}
+
+export interface AdminDashboard {
+    totalUsers: bigint;
+    totalTrades: bigint;
+    activeTrades: bigint;
+    completedTrades: bigint;
+    disputedTrades: bigint;
+    commissionBalance: bigint;
+    totalListings: bigint;
+    activeListings: bigint;
 }

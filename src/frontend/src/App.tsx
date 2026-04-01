@@ -18,6 +18,7 @@ import {
   Pencil,
   QrCode,
   ScanLine,
+  Settings,
   Share2,
   Shield,
   Shuffle,
@@ -29,6 +30,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { User as UserType } from "./backend";
+import { AdminPanel } from "./components/AdminPanel";
 import { ChatView } from "./components/ChatView";
 import { DiscoverTab } from "./components/DiscoverTab";
 import { EarnTab } from "./components/EarnTab";
@@ -224,6 +226,7 @@ function ProfileTab({
   const [showQRCode, setShowQRCode] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const handleShare = async () => {
     try {
@@ -388,6 +391,18 @@ function ProfileTab({
         <p className="text-xs text-muted-foreground">
           Member since {formatDate(user.createdAt)}
         </p>
+        {/* Admin Panel button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowAdmin(true)}
+          data-ocid="profile.open_modal_button"
+          className="mt-4 w-full gap-2 h-10 text-sm border-white/10 bg-white/5 hover:bg-white/10 text-muted-foreground"
+        >
+          <Settings className="w-4 h-4" />
+          u2699ufe0f Admin Paneli
+        </Button>
+        <AdminPanel open={showAdmin} onClose={() => setShowAdmin(false)} />
       </div>
     </motion.div>
   );

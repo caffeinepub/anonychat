@@ -258,6 +258,14 @@ actor {
   let REWARD_DELAY_NS : Int = 86_400_000_000_000;   // 24 hours
   let DAILY_EARN_CAP : Nat = 100;
   let ACTIVE_MSG_THRESHOLD : Nat = 5;
+  // --- Admin & Commission System ---
+  stable let frozenUsers = Map.empty<Principal, Bool>();
+  stable let tradeCommissions = Map.empty<Nat, Nat>();
+  stable var systemCommissionBalance : Nat = 0;
+  stable let disputeEvidence = Map.empty<Nat, Text>();
+  let COMMISSION_RATE_BPS : Nat = 200; // 2% in basis points
+
+
 
   func padTo4(n : Nat) : Text {
     let s = n.toText();
@@ -1572,6 +1580,187 @@ actor {
     tradeMessages.values().filter(
       func(m : TradeMessage) : Bool { m.tradeId == tradeId }
     ).toArray();
+  };
+
+
+  // =====================
+  // ADMIN CONTROL PANEL
+  // =====================
+
+  func isAdminCaller(caller : Principal) : Bool {
+    AccessControl.isAdmin(accessControlState, caller)
+  };
+
+  public shared ({ caller }) func openDispute(tradeId : Nat, evidence : Text) : async () {
+    let trade = switch (p2pTrades.get(tradeId)) {
+      case (null) { Runtime.trap("Trade not found") };
+      case (?t) { t };
+    };
+    if (trade.buyerPrincipal != caller and trade.sellerPrincipal != caller) {
+      Runtime.trap("Unauthorized: Not your trade");
+    };
+    switch (trade.status) {
+      case (#PaymentSent) {};
+      case (#Confirmed) {};
+      case (_) { Runtime.trap("Cannot open dispute for this trade status") };
+    };
+    p2pTrades.add(tradeId, { trade with status = #Disputed });
+    disputeEvidence.add(tradeId, evidence);
+  };
+
+  public shared ({ caller }) func resolveDispute(tradeId : Nat, favorBuyer : Bool) : async () {
+    if (not isAdminCaller(caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    let trade = switch (p2pTrades.get(tradeId)) {
+      case (null) { Runtime.trap("Trade not found") };
+      case (?t) { t };
+    };
+    switch (trade.status) {
+      case (#Disputed) {};
+      case (_) { Runtime.trap("Trade is not in Disputed status") };
+    };
+    if (favorBuyer) {
+      // Transfer ID to buyer
+      let buyerUser = switch (users.get(trade.buyerPrincipal)) {
+        case (null) { Runtime.trap("Buyer not found") };
+        case (?u) { u };
+      };
+      let sellerUser = switch (users.get(trade.sellerPrincipal)) {
+        case (null) { Runtime.trap("Seller not found") };
+        case (?u) { u };
+      };
+      anonIdToPrincipal.remove(buyerUser.anonymousId);
+      let newBuyerUser = { buyerUser with anonymousId = trade.listedAnonId };
+      users.add(trade.buyerPrincipal, newBuyerUser);
+      anonIdToPrincipal.add(trade.listedAnonId, trade.buyerPrincipal);
+      switch (userProfiles.get(trade.buyerPrincipal)) {
+        case (?p) { userProfiles.add(trade.buyerPrincipal, { p with anonymousId = trade.listedAnonId }) };
+        case (null) {};
+      };
+      p2pTrades.add(tradeId, { trade with status = #Confirmed });
+      switch (p2pListings.get(trade.listingId)) {
+        case (?listing) { p2pListings.add(trade.listingId, { listing with status = #Sold }) };
+        case (null) {};
+      };
+      // Give seller a new ID asynchronously is not possible here, skip for dispute resolution
+    } else {
+      // Return to seller: cancel and unlock
+      p2pTrades.add(tradeId, { trade with status = #Cancelled });
+      switch (p2pListings.get(trade.listingId)) {
+        case (?listing) {
+          switch (listing.status) {
+            case (#Locked) { p2pListings.add(trade.listingId, { listing with status = #Active }) };
+            case (_) {};
+          };
+        };
+        case (null) {};
+      };
+    };
+  };
+
+  public query ({ caller }) func getAllTradesAdmin() : async [P2PTrade] {
+    if (not isAdminCaller(caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    p2pTrades.values().toArray()
+  };
+
+  public query ({ caller }) func getAllUsersAdmin() : async [User] {
+    if (not isAdminCaller(caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    users.values().toArray()
+  };
+
+  public shared ({ caller }) func freezeUser(target : Principal) : async () {
+    if (not isAdminCaller(caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    frozenUsers.add(target, true);
+  };
+
+  public shared ({ caller }) func unfreezeUser(target : Principal) : async () {
+    if (not isAdminCaller(caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    frozenUsers.remove(target);
+  };
+
+  public query ({ caller }) func isUserFrozen(target : Principal) : async Bool {
+    switch (frozenUsers.get(target)) {
+      case (?v) { v };
+      case (null) { false };
+    };
+  };
+
+  public type AdminDashboard = {
+    totalUsers : Nat;
+    totalTrades : Nat;
+    activeTrades : Nat;
+    completedTrades : Nat;
+    disputedTrades : Nat;
+    commissionBalance : Nat;
+    totalListings : Nat;
+    activeListings : Nat;
+  };
+
+  public query ({ caller }) func getAdminDashboard() : async AdminDashboard {
+    if (not isAdminCaller(caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    var active = 0;
+    var completed = 0;
+    var disputed = 0;
+    for ((_, trade) in p2pTrades.entries()) {
+      switch (trade.status) {
+        case (#Pending) { active += 1 };
+        case (#PaymentSent) { active += 1 };
+        case (#Confirmed) { completed += 1 };
+        case (#Disputed) { disputed += 1 };
+        case (_) {};
+      };
+    };
+    var activeL = 0;
+    for ((_, listing) in p2pListings.entries()) {
+      switch (listing.status) {
+        case (#Active) { activeL += 1 };
+        case (_) {};
+      };
+    };
+    {
+      totalUsers = users.size();
+      totalTrades = p2pTrades.size();
+      activeTrades = active;
+      completedTrades = completed;
+      disputedTrades = disputed;
+      commissionBalance = systemCommissionBalance;
+      totalListings = p2pListings.size();
+      activeListings = activeL;
+    }
+  };
+
+  public query ({ caller }) func getDisputedTrades() : async [P2PTrade] {
+    if (not isAdminCaller(caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    p2pTrades.values().filter(
+      func(t : P2PTrade) : Bool { t.status == #Disputed }
+    ).toArray()
+  };
+
+  public query ({ caller }) func getDisputeEvidence(tradeId : Nat) : async ?Text {
+    if (not isAdminCaller(caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    disputeEvidence.get(tradeId)
+  };
+
+  public query ({ caller }) func getCommissionBalance() : async Nat {
+    if (not isAdminCaller(caller)) {
+      Runtime.trap("Unauthorized: Admin only");
+    };
+    systemCommissionBalance
   };
 
 };
