@@ -310,6 +310,105 @@ function genRefCode(): string {
   return `REF-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
 }
 
+// ─── Currencies & Banks ───────────────────────────────────────────────────────
+
+const CURRENCIES = [
+  { code: "EUR", symbol: "€", rate: 1 },
+  { code: "USD", symbol: "$", rate: 1.08 },
+  { code: "GBP", symbol: "£", rate: 0.86 },
+  { code: "TRY", symbol: "₺", rate: 35 },
+  { code: "USDT", symbol: "₮", rate: 1.08 },
+  { code: "BTC", symbol: "₿", rate: 0.000016 },
+  { code: "ETH", symbol: "Ξ", rate: 0.00028 },
+] as const;
+
+type CurrencyCode = (typeof CURRENCIES)[number]["code"];
+
+function CurrencyChips({
+  selected,
+  onChange,
+}: {
+  selected: CurrencyCode;
+  onChange: (c: CurrencyCode) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+      {CURRENCIES.map((c) => (
+        <button
+          key={c.code}
+          type="button"
+          onClick={() => onChange(c.code)}
+          className={cn(
+            "flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all",
+            selected === c.code
+              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
+              : "bg-white/5 text-zinc-400 border-white/10 hover:border-white/25",
+          )}
+        >
+          {c.symbol} {c.code}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const BANKS = [
+  {
+    id: "ziraat",
+    name: "Ziraat Bankası 🇹🇷",
+    placeholder: "TR00 0001 0000 0000 0000 00",
+  },
+  {
+    id: "garanti",
+    name: "Garanti BBVA 🇹🇷",
+    placeholder: "TR00 0006 2000 0000 0000 00",
+  },
+  {
+    id: "isbank",
+    name: "İş Bankası 🇹🇷",
+    placeholder: "TR00 0006 4000 0000 0000 00",
+  },
+  {
+    id: "akbank",
+    name: "Akbank 🇹🇷",
+    placeholder: "TR00 0004 6000 0000 0000 00",
+  },
+  {
+    id: "yapikredi",
+    name: "Yapı Kredi 🇹🇷",
+    placeholder: "TR00 0006 7000 0000 0000 00",
+  },
+  {
+    id: "halkbank",
+    name: "Halkbank 🇹🇷",
+    placeholder: "TR00 0001 2000 0000 0000 00",
+  },
+  {
+    id: "vakifbank",
+    name: "Vakıfbank 🇹🇷",
+    placeholder: "TR00 0001 5000 0000 0000 00",
+  },
+  {
+    id: "denizbank",
+    name: "Denizbank 🇹🇷",
+    placeholder: "TR00 0013 4000 0000 0000 00",
+  },
+  {
+    id: "deutsche",
+    name: "Deutsche Bank 🇩🇪",
+    placeholder: "DE00 1007 0024 0000 0000 00",
+  },
+  { id: "ing", name: "ING 🇳🇱", placeholder: "NL00 INGB 0000 0000 00" },
+  {
+    id: "revolut",
+    name: "Revolut 🌍",
+    placeholder: "GB00 REVO 0099 6953 0000 00",
+  },
+  { id: "n26", name: "N26 🌍", placeholder: "DE00 1001 1001 2625 0000 00" },
+  { id: "wise", name: "Wise 🌍", placeholder: "BE00 9671 8030 0000" },
+  { id: "swift", name: "SWIFT/BIC 🌐", placeholder: "Enter SWIFT/BIC code" },
+] as const;
+
 // ─── ActivityFeed ─────────────────────────────────────────────────────────────
 
 function ActivityFeed() {
@@ -389,6 +488,57 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+// ─── KYC Trust System ─────────────────────────────────────────────────────────
+
+function getKycLevel(tradeCount: number, isAdmin: boolean) {
+  if (isAdmin || tradeCount >= 100)
+    return {
+      level: 3,
+      label: "Onaylı Satıcı ✓",
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/20",
+    };
+  if (tradeCount >= 20)
+    return {
+      level: 2,
+      label: "Deneyimli",
+      color: "text-yellow-400",
+      bg: "bg-yellow-500/20",
+    };
+  if (tradeCount >= 5)
+    return {
+      level: 1,
+      label: "Güvenilir",
+      color: "text-blue-400",
+      bg: "bg-blue-500/20",
+    };
+  return {
+    level: 0,
+    label: "Anonim",
+    color: "text-zinc-400",
+    bg: "bg-zinc-500/20",
+  };
+}
+
+function KycBadge({
+  tradeCount,
+  isAdmin,
+}: { tradeCount: number; isAdmin: boolean }) {
+  const kyc = getKycLevel(tradeCount, isAdmin);
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold border ${kyc.bg} ${kyc.color} border-current/20`}
+    >
+      {kyc.level === 3 ? (
+        <ShieldCheck className="w-2.5 h-2.5" />
+      ) : kyc.level >= 1 ? (
+        <Shield className="w-2.5 h-2.5" />
+      ) : null}
+      {kyc.label}
+    </span>
+  );
+}
+
 // ─── TrustBar ─────────────────────────────────────────────────────────────────
 
 function TrustBar() {
@@ -405,6 +555,32 @@ function TrustBar() {
           </span>
         ),
       )}
+    </div>
+  );
+}
+
+// ─── TradeStatsPanel ──────────────────────────────────────────────────────────
+
+function TradeStatsPanel() {
+  return (
+    <div className="mb-3 bg-gradient-to-r from-emerald-950/40 to-zinc-900/60 border border-emerald-500/20 rounded-xl px-4 py-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Flame className="w-3.5 h-3.5 text-orange-400" />
+        <p className="text-xs font-bold text-foreground">
+          Bu hafta 23 ID satıldı
+        </p>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+          ✅ 847 Başarılı
+        </span>
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-sky-500/15 text-sky-400 border border-sky-500/25">
+          ⚡ Ort. 8dk
+        </span>
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/25">
+          📊 96% Başarı
+        </span>
+      </div>
     </div>
   );
 }
@@ -631,11 +807,13 @@ function FakeBuyFlowSheet({ open, onClose, listing }: FakeBuyFlowSheetProps) {
   const [refCode, setRefCode] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const imagePreviewRef = useRef<string | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>("EUR");
 
   useEffect(() => {
     if (open) {
       setStep(1);
       setRefCode(genRefCode());
+      setSelectedCurrency("EUR");
       if (imagePreviewRef.current) URL.revokeObjectURL(imagePreviewRef.current);
       setImagePreview(null);
       imagePreviewRef.current = null;
@@ -750,12 +928,32 @@ function FakeBuyFlowSheet({ open, onClose, listing }: FakeBuyFlowSheetProps) {
         {step === 2 && listing && (
           <div className="space-y-4">
             <div className="glass-card rounded-xl p-4 space-y-3">
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">
+                  Para Birimi Seç
+                </p>
+                <CurrencyChips
+                  selected={selectedCurrency}
+                  onChange={setSelectedCurrency}
+                />
+              </div>
+              <Separator className="bg-white/5" />
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">
                   Amount to Send
                 </span>
                 <span className="text-xl font-bold text-emerald-400">
-                  €{listing.price}
+                  {(() => {
+                    const cur = CURRENCIES.find(
+                      (c) => c.code === selectedCurrency,
+                    )!;
+                    const converted = listing.price * cur.rate;
+                    const formatted =
+                      selectedCurrency === "BTC" || selectedCurrency === "ETH"
+                        ? converted.toFixed(6)
+                        : converted.toFixed(2);
+                    return `${cur.symbol}${formatted} ${selectedCurrency}`;
+                  })()}
                 </span>
               </div>
               <Separator className="bg-white/5" />
@@ -1076,11 +1274,12 @@ function FakeListingCard({ listing, index, onBuyClick }: FakeListingCardProps) {
           {listing.sellerName[0]}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-xs font-medium truncate">
               {listing.sellerName}
             </span>
             <StarRating rating={listing.rating} />
+            <KycBadge tradeCount={listing.tradeCount} isAdmin={isAdminSeller} />
           </div>
           <p className="text-[10px] text-muted-foreground">
             {listing.tradeCount} trades completed
@@ -1158,10 +1357,13 @@ function RealBuyFlowSheet({
   const [screenshotHash, setScreenshotHash] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedCurrencyReal, setSelectedCurrencyReal] =
+    useState<CurrencyCode>("EUR");
   const imagePreviewRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (open) {
+      setSelectedCurrencyReal("EUR");
       if (existingTrade) {
         setStep(3);
         setCurrentTrade(existingTrade);
@@ -1319,10 +1521,31 @@ function RealBuyFlowSheet({
         {step === 2 && currentTrade && (
           <div className="space-y-4">
             <div className="glass-card rounded-xl p-4 space-y-3">
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">
+                  Para Birimi Seç
+                </p>
+                <CurrencyChips
+                  selected={selectedCurrencyReal}
+                  onChange={setSelectedCurrencyReal}
+                />
+              </div>
+              <Separator className="bg-white/5" />
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Amount</span>
                 <span className="text-xl font-bold text-emerald-400">
-                  €{currentTrade.price}
+                  {(() => {
+                    const cur = CURRENCIES.find(
+                      (c) => c.code === selectedCurrencyReal,
+                    )!;
+                    const converted = Number(currentTrade.price) * cur.rate;
+                    const formatted =
+                      selectedCurrencyReal === "BTC" ||
+                      selectedCurrencyReal === "ETH"
+                        ? converted.toFixed(6)
+                        : converted.toFixed(2);
+                    return `${cur.symbol}${formatted} ${selectedCurrencyReal}`;
+                  })()}
                 </span>
               </div>
               <Separator className="bg-white/5" />
@@ -1523,6 +1746,141 @@ function RealBuyFlowSheet({
             >
               Close
             </Button>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ─── DisputeSheet ─────────────────────────────────────────────────────────────
+
+interface DisputeSheetProps {
+  open: boolean;
+  onClose: () => void;
+  tradeId: string;
+  onSubmitted: (tradeId: string) => void;
+}
+
+function DisputeSheet({
+  open,
+  onClose,
+  tradeId,
+  onSubmitted,
+}: DisputeSheetProps) {
+  const [reason, setReason] = useState("");
+  const [evidence, setEvidence] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setReason("");
+      setEvidence("");
+      setSubmitted(false);
+    }
+  }, [open]);
+
+  const handleSubmit = () => {
+    if (!reason.trim()) {
+      toast.error("Lütfen sorunu açıklayın");
+      return;
+    }
+    onSubmitted(tradeId);
+    setSubmitted(true);
+    toast.success("Anlaşmazlık bildirildi — admin inceleyecek");
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent
+        side="bottom"
+        className="bg-[oklch(0.11_0_0)] border-t border-white/10 rounded-t-2xl max-h-[80dvh] overflow-y-auto px-4 pb-10"
+        data-ocid="p2p.sheet"
+      >
+        <SheetHeader className="mb-4 text-left">
+          <SheetTitle className="flex items-center gap-2 text-base text-orange-300">
+            <AlertTriangle className="w-4 h-4 text-orange-400" />
+            Anlaşmazlık Bildir
+          </SheetTitle>
+        </SheetHeader>
+
+        {submitted ? (
+          <div className="space-y-4 py-4 text-center">
+            <div className="w-14 h-14 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-7 h-7 text-orange-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-orange-300">
+                Anlaşmazlık gönderildi
+              </p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                ⚠️ İnceleniyor — Admin 24 saat içinde karar verir
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full border-white/15 hover:bg-white/5"
+              onClick={onClose}
+              data-ocid="p2p.close_button"
+            >
+              Kapat
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-orange-950/30 border border-orange-700/30 rounded-xl p-3.5">
+              <p className="text-xs text-orange-200/80 leading-relaxed">
+                Trade #{tradeId.slice(0, 8)}… için anlaşmazlık açılacak. Her iki
+                taraf kanıt sunabilir. Admin 24 saat içinde inceleyip karar
+                verir.
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground block mb-1.5">
+                Sorunu Açıklayın *
+              </Label>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Neden anlaşmazlık açıyorsunuz? Detaylı açıklayın..."
+                rows={4}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500/50 text-foreground placeholder:text-muted-foreground resize-none"
+                data-ocid="p2p.textarea"
+              />
+            </div>
+
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground block mb-1.5">
+                Kanıt / Referans No
+              </Label>
+              <Input
+                placeholder="İşlem referans numarası, ekran görüntüsü açıklaması..."
+                value={evidence}
+                onChange={(e) => setEvidence(e.target.value)}
+                className="bg-white/5 border-white/10 focus:border-orange-500/50 font-mono text-sm"
+                data-ocid="p2p.input"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 border-white/15 hover:bg-white/5"
+                onClick={onClose}
+                data-ocid="p2p.cancel_button"
+              >
+                İptal
+              </Button>
+              <Button
+                className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold"
+                onClick={handleSubmit}
+                data-ocid="p2p.submit_button"
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Anlaşmazlık Gönder
+              </Button>
+            </div>
           </div>
         )}
       </SheetContent>
@@ -2025,6 +2383,9 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
   const [rateTrade, setRateTrade] = useState<P2PTrade | null>(null);
   const [rateOpen, setRateOpen] = useState(false);
   const [ratedTradeIds, setRatedTradeIds] = useState<Set<string>>(new Set());
+  const [disputedTrades, setDisputedTrades] = useState<Set<string>>(new Set());
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeTradeId, setDisputeTradeId] = useState<string>("");
 
   // ── Check admin role ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2257,6 +2618,11 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
               </Button>
             )}
           </div>
+        </div>
+
+        {/* ── Trade Stats Panel ─────────────────────────────────────────── */}
+        <div className="px-4">
+          <TradeStatsPanel />
         </div>
 
         <Tabs
@@ -2545,6 +2911,31 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
 
                     <div>
                       <Label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1.5">
+                        Banka Seç (Opsiyonel)
+                      </Label>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {BANKS.slice(0, 6).map((bank) => (
+                          <button
+                            key={bank.id}
+                            type="button"
+                            onClick={() => setNewIban(bank.placeholder)}
+                            className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-white/5 border-white/15 text-zinc-300 hover:bg-white/10 hover:border-white/30 transition-all"
+                          >
+                            {bank.name}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {}}
+                          className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-white/5 border-white/15 text-zinc-400 hover:bg-white/10 transition-all"
+                        >
+                          +{BANKS.length - 6} daha
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1.5">
                         Your IBAN *
                       </Label>
                       <Input
@@ -2770,6 +3161,35 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                         </div>
                       )}
 
+                      {/* Dispute button for PaymentSent or Confirmed */}
+                      {(statusKind === "PaymentSent" ||
+                        statusKind === "Confirmed") && (
+                        <div className="mt-2">
+                          {disputedTrades.has(String(trade.id)) ? (
+                            <div className="flex items-center gap-2 bg-orange-950/20 border border-orange-700/30 rounded-lg px-3 py-2">
+                              <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+                              <p className="text-xs text-orange-300 font-medium">
+                                ⚠️ İnceleniyor — Admin 24 saat içinde karar verir
+                              </p>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full border-orange-500/30 text-orange-400 hover:bg-orange-500/10 h-9 text-xs"
+                              onClick={() => {
+                                setDisputeTradeId(String(trade.id));
+                                setDisputeOpen(true);
+                              }}
+                              data-ocid="p2p.open_modal_button"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
+                              ⚠️ Anlaşmazlık Aç
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
                       {/* Trade Chat button for active trades */}
                       {(statusKind === "Pending" ||
                         statusKind === "PaymentSent") && (
@@ -2904,6 +3324,17 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
         onRated={(id) =>
           setRatedTradeIds((prev) => new Set([...prev, String(id)]))
         }
+      />
+
+      {/* ── Dispute Sheet ──────────────────────────────────────────────────────── */}
+      <DisputeSheet
+        open={disputeOpen}
+        onClose={() => setDisputeOpen(false)}
+        tradeId={disputeTradeId}
+        onSubmitted={(id) => {
+          setDisputedTrades((prev) => new Set([...prev, id]));
+          setDisputeOpen(false);
+        }}
       />
 
       {/* ── Admin dialog ─────────────────────────────────────────────────────── */}
