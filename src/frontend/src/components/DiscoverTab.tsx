@@ -17,8 +17,8 @@ function StatusDot({ online }: { online: boolean }) {
     <span
       className={`inline-block rounded-full w-2 h-2 flex-shrink-0 ${
         online
-          ? "bg-[oklch(0.72_0.2_145)] online-pulse"
-          : "bg-[oklch(0.45_0_0)]"
+          ? "bg-[oklch(0.72_0.18_145)] online-pulse"
+          : "bg-muted-foreground/30"
       }`}
     />
   );
@@ -75,7 +75,7 @@ function UserRow({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: idx * 0.04 }}
-      className="flex items-center gap-3 p-3 rounded-xl bg-[oklch(0.13_0_0)] border border-white/5 hover:border-white/10 transition-colors cursor-pointer active:bg-white/5"
+      className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/20 transition-colors cursor-pointer active:bg-muted/30"
       onClick={() => onStartChat(user.anonymousId)}
       data-ocid={`discover.item.${idx + 1}`}
     >
@@ -91,7 +91,7 @@ function UserRow({
             </span>
           )}
           {showDist && user.distance !== null && (
-            <span className="text-[10px] text-[oklch(0.72_0.2_145)] flex items-center gap-0.5">
+            <span className="text-[10px] text-[oklch(0.72_0.18_145)] flex items-center gap-0.5">
               <MapPin className="w-2.5 h-2.5" />
               {formatDistance(user.distance)}
             </span>
@@ -213,7 +213,7 @@ export function DiscoverTab({
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
-            className="text-xs border-[oklch(0.72_0.2_145_/30%)] text-[oklch(0.72_0.2_145)] bg-[oklch(0.72_0.2_145_/10%)] font-mono"
+            className="text-xs border-[oklch(0.72_0.18_145_/30%)] text-[oklch(0.72_0.18_145)] bg-[oklch(0.72_0.18_145_/10%)] font-mono"
             data-ocid="discover.panel"
           >
             {onlineCount} online
@@ -236,7 +236,7 @@ export function DiscoverTab({
             </Button>
           )}
           {locationStatus === "granted" && (
-            <span className="text-[10px] text-[oklch(0.72_0.2_145)] flex items-center gap-1">
+            <span className="text-[10px] text-[oklch(0.72_0.18_145)] flex items-center gap-1">
               <MapPin className="w-3 h-3" /> Konum aktif
             </span>
           )}
@@ -248,7 +248,7 @@ export function DiscoverTab({
         <button
           type="button"
           onClick={() => setShowSecretRooms(true)}
-          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-muted-foreground hover:text-foreground hover:border-white/20 transition-all"
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted/30 border border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all"
           data-ocid="discover.secondary_button"
         >
           🔐 <span className="font-medium">Gizli Odalar</span>
@@ -265,7 +265,7 @@ export function DiscoverTab({
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="flex items-center gap-3 p-3 rounded-xl bg-[oklch(0.13_0_0)] border border-white/5"
+                className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border"
               >
                 <Skeleton className="w-2 h-2 rounded-full bg-white/10 flex-shrink-0" />
                 <Skeleton className="h-3 w-32 bg-white/10" />
@@ -293,7 +293,7 @@ export function DiscoverTab({
               <motion.div
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 p-3 rounded-xl bg-[oklch(0.13_0_0)] border border-white/5 mb-1"
+                className="flex items-center gap-2 p-3 rounded-xl bg-[oklch(0.13_0_0)] border border-border mb-1"
               >
                 <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                 <p className="text-xs text-muted-foreground">
@@ -305,8 +305,8 @@ export function DiscoverTab({
             {nearby.length > 0 && (
               <>
                 <div className="flex items-center gap-2 py-2">
-                  <MapPin className="w-3 h-3 text-[oklch(0.72_0.2_145)]" />
-                  <span className="text-xs font-medium text-[oklch(0.72_0.2_145)]">
+                  <MapPin className="w-3 h-3 text-[oklch(0.72_0.18_145)]" />
+                  <span className="text-xs font-medium text-[oklch(0.72_0.18_145)]">
                     Yakınındakiler (50km)
                   </span>
                 </div>

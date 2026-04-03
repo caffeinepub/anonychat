@@ -95,11 +95,11 @@ export function NotificationCenter({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md p-0 flex flex-col border-l border-white/10"
-        style={{ background: "oklch(0.10 0 0)" }}
+        className="w-full sm:max-w-md p-0 flex flex-col border-l border-border"
+        style={{ background: "oklch(0.13 0.025 240)" }}
         data-ocid="notifications.sheet"
       >
-        <SheetHeader className="px-4 py-4 border-b border-white/10 flex-shrink-0">
+        <SheetHeader className="px-4 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-base font-semibold text-foreground flex items-center gap-2">
               <Bell className="w-4 h-4 text-primary" />
@@ -108,7 +108,7 @@ export function NotificationCenter({
                 <span
                   className="text-xs font-bold px-1.5 py-0.5 rounded-full"
                   style={{
-                    background: "oklch(0.6 0.25 25)",
+                    background: "oklch(0.65 0.15 210)",
                     color: "white",
                   }}
                 >
@@ -142,11 +142,11 @@ export function NotificationCenter({
             >
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ background: "oklch(0.72 0.2 145 / 0.1)" }}
+                style={{ background: "oklch(0.65 0.15 210 / 0.12)" }}
               >
                 <Bell
                   className="w-8 h-8"
-                  style={{ color: "oklch(0.72 0.2 145)" }}
+                  style={{ color: "oklch(0.65 0.15 210)" }}
                 />
               </div>
               <p className="text-sm text-muted-foreground">
@@ -168,7 +168,7 @@ export function NotificationCenter({
                         initial={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 80 }}
                         transition={{ duration: 0.2 }}
-                        className="flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group"
+                        className="flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-muted/40 transition-colors cursor-pointer group"
                         data-ocid={`notifications.item.${n.id}`}
                         onClick={() => {
                           if (n.contactId) {
@@ -181,7 +181,7 @@ export function NotificationCenter({
                         <div className="relative mt-0.5">
                           <div
                             className="w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0"
-                            style={{ background: "oklch(0.18 0.01 260)" }}
+                            style={{ background: "oklch(0.22 0.03 238)" }}
                           >
                             {getTypeIcon(n.type)}
                           </div>
@@ -189,8 +189,8 @@ export function NotificationCenter({
                             <span
                               className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
                               style={{
-                                background: "oklch(0.6 0.25 25)",
-                                borderColor: "oklch(0.10 0 0)",
+                                background: "oklch(0.65 0.15 210)",
+                                borderColor: "oklch(0.13 0.025 240)",
                               }}
                             />
                           )}
@@ -212,7 +212,7 @@ export function NotificationCenter({
 
                         <button
                           type="button"
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all flex-shrink-0"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all flex-shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
                             removeNotification(n.id);
@@ -231,7 +231,7 @@ export function NotificationCenter({
         </ScrollArea>
 
         {/* Settings footer */}
-        <div className="border-t border-white/10 p-4 space-y-3 flex-shrink-0">
+        <div className="border-t border-border p-4 space-y-3 flex-shrink-0">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Bildirim Ayarları
           </p>
@@ -252,7 +252,7 @@ export function NotificationCenter({
             />
           </div>
 
-          <Separator className="bg-white/5" />
+          <Separator className="bg-muted/30" />
 
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
@@ -271,7 +271,7 @@ export function NotificationCenter({
                 onClick={requestPushPermission}
                 className="ml-2 text-xs h-7 px-2"
                 style={{
-                  background: "oklch(0.72 0.2 145)",
+                  background: "oklch(0.65 0.15 210)",
                   color: "black",
                 }}
                 data-ocid="notifications.primary_button"

@@ -120,7 +120,7 @@ function StatCard({
   icon,
 }: { label: string; value: string | number; icon: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+    <div className="rounded-xl border border-border bg-muted/30 p-4">
       <div className="flex items-center gap-2 mb-2">
         <span className="text-primary">{icon}</span>
         <span className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -147,7 +147,7 @@ function TradeCard({
 
   return (
     <div
-      className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3"
+      className="rounded-xl border border-border bg-card p-4 space-y-3"
       data-ocid="admin.trade.card"
     >
       <div className="flex items-center justify-between">
@@ -378,7 +378,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="bottom"
-        className="h-[92dvh] bg-[oklch(0.12_0.015_240)] border-t border-white/10 p-0 flex flex-col"
+        className="h-[92dvh] bg-background border-t border-border p-0 flex flex-col"
         data-ocid="admin.panel"
       >
         <SheetHeader className="px-4 pt-4 pb-2 flex-shrink-0">
@@ -425,7 +425,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
             defaultValue="dashboard"
             className="flex-1 flex flex-col min-h-0"
           >
-            <TabsList className="mx-4 mb-2 bg-white/5 border border-white/10 h-9 flex-shrink-0">
+            <TabsList className="mx-4 mb-2 bg-muted/30 border border-border h-9 flex-shrink-0">
               <TabsTrigger
                 value="dashboard"
                 className="flex-1 text-xs data-[state=active]:bg-primary/20"
@@ -474,7 +474,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
                       {["a", "b", "c", "d", "e", "f"].map((sk) => (
                         <Skeleton
                           key={sk}
-                          className="h-24 rounded-xl bg-white/5"
+                          className="h-24 rounded-xl bg-muted/30"
                         />
                       ))}
                     </div>
@@ -555,7 +555,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
                     className={`px-3 py-1 rounded-full text-xs whitespace-nowrap border transition-colors ${
                       tradeFilter === f
                         ? "bg-primary/20 border-primary/40 text-primary"
-                        : "border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10"
+                        : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60"
                     }`}
                   >
                     {f === "all" ? "Tümü" : getStatusConfig(f).label}
@@ -570,7 +570,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
                       {["a", "b", "c"].map((sk) => (
                         <Skeleton
                           key={sk}
-                          className="h-32 rounded-xl bg-white/5 mb-3"
+                          className="h-32 rounded-xl bg-muted/30 mb-3"
                         />
                       ))}
                     </div>
@@ -609,7 +609,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
                       {["a", "b", "c", "d"].map((sk) => (
                         <Skeleton
                           key={sk}
-                          className="h-14 rounded-xl bg-white/5 mb-2"
+                          className="h-14 rounded-xl bg-muted/30 mb-2"
                         />
                       ))}
                     </div>
@@ -627,7 +627,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
                       return (
                         <div
                           key={u.anonymousId}
-                          className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                          className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
                           data-ocid={`admin.users.item.${i + 1}`}
                         >
                           <div className="min-w-0">
@@ -688,7 +688,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
                       {["a", "b", "c"].map((sk) => (
                         <Skeleton
                           key={sk}
-                          className="h-40 rounded-xl bg-white/5 mb-3"
+                          className="h-40 rounded-xl bg-muted/30 mb-3"
                         />
                       ))}
                     </div>
@@ -797,12 +797,12 @@ function DisputeCard({
       <div>
         <p className="text-xs text-muted-foreground mb-1">Kanıt</p>
         {loadingEvidence ? (
-          <Skeleton className="h-10 bg-white/5" />
+          <Skeleton className="h-10 bg-muted/30" />
         ) : evidence ? (
           <Textarea
             readOnly
             value={evidence}
-            className="text-xs h-16 resize-none bg-black/20 border-white/10 text-muted-foreground"
+            className="text-xs h-16 resize-none bg-black/20 border-border text-muted-foreground"
           />
         ) : (
           <p className="text-xs text-muted-foreground/50 italic">Kanıt yok</p>

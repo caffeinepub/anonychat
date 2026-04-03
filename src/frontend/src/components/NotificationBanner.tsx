@@ -70,9 +70,9 @@ function BannerItem({
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+      className="relative rounded-2xl overflow-hidden shadow-2xl border border-border"
       style={{
-        background: "oklch(0.14 0.005 260)",
+        background: "oklch(0.22 0.03 238)",
       }}
     >
       {/* Progress bar */}
@@ -80,7 +80,7 @@ function BannerItem({
         className="absolute bottom-0 left-0 h-0.5 transition-none"
         style={{
           width: `${progress}%`,
-          background: "oklch(0.72 0.2 145)",
+          background: "oklch(0.72 0.18 145)",
           transition: "width 100ms linear",
         }}
       />
@@ -89,7 +89,7 @@ function BannerItem({
         {/* Icon */}
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
-          style={{ background: "oklch(0.72 0.2 145 / 0.15)" }}
+          style={{ background: "oklch(0.72 0.18 145 / 0.15)" }}
         >
           {getTypeIcon(notification.type)}
         </div>
@@ -117,8 +117,8 @@ function BannerItem({
                 }}
                 className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors"
                 style={{
-                  color: "oklch(0.72 0.2 145)",
-                  background: "oklch(0.72 0.2 145 / 0.12)",
+                  color: "oklch(0.72 0.18 145)",
+                  background: "oklch(0.72 0.18 145 / 0.12)",
                 }}
               >
                 Yanıtla

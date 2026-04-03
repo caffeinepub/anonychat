@@ -88,8 +88,8 @@ function StatusDot({
     <span
       className={`inline-block rounded-full ${sizes} flex-shrink-0 ${
         online
-          ? "bg-[oklch(0.72_0.2_145)] online-pulse"
-          : "bg-[oklch(0.45_0_0)]"
+          ? "bg-[oklch(0.72_0.18_145)] online-pulse"
+          : "bg-muted-foreground/30"
       }`}
     />
   );
@@ -116,7 +116,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
         size="sm"
         onClick={handleCopy}
         data-ocid="profile.copy_button"
-        className="flex-1 gap-2 border-white/10 bg-white/5 hover:bg-white/10 text-sm h-10"
+        className="flex-1 gap-2 border-border bg-muted/50 hover:bg-muted text-sm h-10"
       >
         {copied ? (
           <Check className="w-4 h-4 text-[oklch(0.72_0.2_145)]" />
@@ -133,7 +133,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
       type="button"
       onClick={handleCopy}
       data-ocid="identity.copy_button"
-      className="p-2 rounded-lg text-muted-foreground hover:text-primary transition-colors hover:bg-white/5"
+      className="p-2 rounded-lg text-muted-foreground hover:text-primary transition-colors hover:bg-muted/60"
       aria-label="Copy ID to clipboard"
     >
       {copied ? (
@@ -187,7 +187,7 @@ function UsernameEditor({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Enter username..."
-          className="h-8 text-sm bg-white/5 border-white/10 focus:border-primary/50 w-40"
+          className="h-8 text-sm bg-muted/30 border-border focus:border-primary/50 w-40"
           maxLength={30}
           data-ocid="profile.input"
         />
@@ -195,7 +195,7 @@ function UsernameEditor({
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="p-1.5 rounded text-[oklch(0.72_0.2_145)] hover:bg-white/5 transition-colors"
+          className="p-1.5 rounded text-[oklch(0.72_0.18_145)] hover:bg-muted/30 transition-colors"
           data-ocid="profile.save_button"
         >
           <Check className="w-3.5 h-3.5" />
@@ -206,7 +206,7 @@ function UsernameEditor({
             setEditing(false);
             setValue(username || "");
           }}
-          className="p-1.5 rounded text-muted-foreground hover:bg-white/5 transition-colors"
+          className="p-1.5 rounded text-muted-foreground hover:bg-muted/30 transition-colors"
           data-ocid="profile.cancel_button"
         >
           <X className="w-3.5 h-3.5" />
@@ -285,7 +285,7 @@ function ProfileTab({
         className="glass-card rounded-2xl p-6 w-full relative overflow-hidden mb-4"
         data-ocid="profile.card"
       >
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[oklch(0.75_0.2_200_/50%)] to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
 
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
@@ -298,7 +298,7 @@ function ProfileTab({
           </div>
           <Badge
             variant="outline"
-            className="text-xs border-white/10 text-muted-foreground"
+            className="text-xs border-border text-muted-foreground"
           >
             PERMANENT
           </Badge>
@@ -322,7 +322,7 @@ function ProfileTab({
             size="sm"
             onClick={handleShare}
             data-ocid="profile.secondary_button"
-            className="flex-1 gap-2 border-white/10 bg-white/5 hover:bg-white/10 text-sm h-10"
+            className="flex-1 gap-2 border-border bg-muted/50 hover:bg-muted text-sm h-10"
           >
             <Share2 className="w-4 h-4" />
             Share
@@ -336,7 +336,7 @@ function ProfileTab({
             size="sm"
             onClick={() => setShowQRCode(true)}
             data-ocid="profile.qrcode_button"
-            className="flex-1 gap-2 border-white/10 bg-white/5 hover:bg-white/10 text-sm h-10"
+            className="flex-1 gap-2 border-border bg-muted/50 hover:bg-muted text-sm h-10"
           >
             <QrCode className="w-4 h-4" />
             QR Kodumu Göster
@@ -346,7 +346,7 @@ function ProfileTab({
             size="sm"
             onClick={() => setShowQRScanner(true)}
             data-ocid="profile.scan_button"
-            className="flex-1 gap-2 border-white/10 bg-white/5 hover:bg-white/10 text-sm h-10"
+            className="flex-1 gap-2 border-border bg-muted/50 hover:bg-muted text-sm h-10"
           >
             <ScanLine className="w-4 h-4" />
             QR Tara
@@ -387,7 +387,7 @@ function ProfileTab({
           myAnonId={user.anonymousId}
         />
 
-        <Separator className="mb-5 bg-white/5" />
+        <Separator className="mb-5 bg-muted/30" />
 
         {/* Online status */}
         <div className="flex items-center justify-between mb-4">
@@ -401,7 +401,7 @@ function ProfileTab({
             checked={user.isOnline}
             onCheckedChange={(v) => setOnline.mutate(v)}
             data-ocid="profile.toggle"
-            className="data-[state=checked]:bg-[oklch(0.72_0.2_145)]"
+            className="data-[state=checked]:bg-[oklch(0.72_0.18_145)]"
           />
         </div>
 
@@ -442,7 +442,7 @@ function ProfileTab({
           size="sm"
           onClick={() => setShowAdmin(true)}
           data-ocid="profile.open_modal_button"
-          className="mt-4 w-full gap-2 h-10 text-sm border-white/10 bg-white/5 hover:bg-white/10 text-muted-foreground"
+          className="mt-4 w-full gap-2 h-10 text-sm border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground"
         >
           <Settings className="w-4 h-4" />
           ⚙️ Admin Paneli
@@ -562,7 +562,7 @@ function PWABanner({
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 80, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px)+8px)] left-3 right-3 z-50 rounded-2xl border border-[oklch(0.72_0.2_145)/40%] bg-[oklch(0.13_0_0)] shadow-xl"
+      className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px)+8px)] left-3 right-3 z-50 rounded-2xl border border-[oklch(0.72_0.18_145)/40%] bg-card shadow-xl"
       data-ocid="pwa.panel"
     >
       <div className="flex items-center gap-3 px-4 py-3">
@@ -589,7 +589,7 @@ function PWABanner({
           type="button"
           onClick={onDismiss}
           data-ocid="pwa.close_button"
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0"
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex-shrink-0"
         >
           <X className="w-4 h-4" />
         </button>
@@ -793,7 +793,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* WhatsApp-style Top Bar */}
-      <header className="border-b border-white/5 px-4 py-3 flex-shrink-0 z-40 bg-[oklch(0.09_0_0)]">
+      <header className="border-b border-border px-4 py-3 flex-shrink-0 z-40 tg-topbar">
         <div className="max-w-screen-xl mx-auto flex items-center justify-between">
           {/* Left: logo + online dot */}
           <div className="flex items-center gap-2">
@@ -802,7 +802,7 @@ export default function App() {
               Anon<span className="text-primary">Chat</span>
             </span>
             {isLoggedIn && me && (
-              <span className="w-2 h-2 rounded-full bg-[oklch(0.72_0.2_145)] online-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[oklch(0.72_0.18_145)] online-pulse" />
             )}
           </div>
 
@@ -814,7 +814,7 @@ export default function App() {
                 <button
                   type="button"
                   data-ocid="nav.search_input"
-                  className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                  className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
                   onClick={() => {
                     setActiveTab("discover");
                   }}
@@ -827,7 +827,7 @@ export default function App() {
                 <button
                   type="button"
                   data-ocid="notifications.open_modal_button"
-                  className="relative p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                  className="relative p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
                   onClick={() => setShowNotifCenter(true)}
                   aria-label="Bildirimler"
                 >
@@ -845,7 +845,7 @@ export default function App() {
                     <button
                       type="button"
                       data-ocid="nav.dropdown_menu"
-                      className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                      className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
                       aria-label="Menü"
                     >
                       <MoreVertical className="w-5 h-5" />
@@ -853,10 +853,10 @@ export default function App() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="bg-[oklch(0.13_0_0)] border-white/10 text-foreground min-w-[160px]"
+                    className="bg-card border-border text-foreground min-w-[160px]"
                   >
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer hover:bg-white/5"
+                      className="gap-2 cursor-pointer hover:bg-muted/60"
                       onClick={() => handleTabChange("profile")}
                       data-ocid="nav.link"
                     >
@@ -864,7 +864,7 @@ export default function App() {
                       Ayarlar
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer hover:bg-white/5"
+                      className="gap-2 cursor-pointer hover:bg-muted/60"
                       onClick={() => setShowQRModal(true)}
                       data-ocid="nav.link"
                     >
@@ -872,16 +872,16 @@ export default function App() {
                       QR Kodu
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer hover:bg-white/5"
+                      className="gap-2 cursor-pointer hover:bg-muted/60"
                       onClick={() => setShowPremiumModal(true)}
                       data-ocid="nav.link"
                     >
                       <Crown className="w-4 h-4 text-amber-400" />
                       <span className="text-amber-400">Premium</span>
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-white/5" />
+                    <DropdownMenuSeparator className="bg-muted/30" />
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer hover:bg-white/5 text-red-400 focus:text-red-400"
+                      className="gap-2 cursor-pointer hover:bg-muted/30 text-red-400 focus:text-red-400"
                       onClick={handleLogout}
                       data-ocid="nav.button"
                     >
@@ -1092,7 +1092,7 @@ export default function App() {
       {/* Bottom Navigation */}
       {me && (
         <nav
-          className="fixed bottom-0 left-0 right-0 z-50 bg-[oklch(0.09_0_0)] border-t border-white/5"
+          className="fixed bottom-0 left-0 right-0 z-50 tg-sidebar border-t border-border"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
           data-ocid="nav.panel"
         >
@@ -1149,7 +1149,7 @@ export default function App() {
 
       {/* Footer for non-logged-in state */}
       {!me && !isLoading && (
-        <footer className="border-t border-white/5 py-6 px-4 flex-shrink-0">
+        <footer className="border-t border-border py-6 px-4 flex-shrink-0">
           <p className="text-center text-xs text-muted-foreground">
             © {year}. Built with ❤️ using{" "}
             <a

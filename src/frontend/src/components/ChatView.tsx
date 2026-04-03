@@ -570,7 +570,7 @@ function MessageBubble({
     if (msg.isGhost)
       return "border border-dashed border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.2)]";
     if (isMine) return "border border-primary/30";
-    return "border border-white/8";
+    return "border border-border/50";
   };
 
   return (
@@ -595,7 +595,7 @@ function MessageBubble({
                 ? "bubble-burn text-foreground rounded-br-sm"
                 : isMine
                   ? "bubble-sent text-foreground rounded-br-sm"
-                  : "bg-white/6 border border-white/8 text-foreground rounded-bl-sm"
+                  : "bg-white/6 border border-border/50 text-foreground rounded-bl-sm"
             } ${getBubbleBorder()} ${msg.isGhost && !isMine ? "bubble-ghost" : ""} ${isCapsule ? "bubble-capsule" : ""}`}
           >
             {/* Burn countdown overlay */}
@@ -744,7 +744,7 @@ function VoiceBubble({
         className={`rounded-2xl px-3 py-2 ${
           isMine
             ? "bg-primary/20 border border-primary/30 rounded-br-sm"
-            : "bg-white/5 border border-white/8 rounded-bl-sm"
+            : "bubble-received rounded-bl-sm"
         }`}
       >
         <VoiceMessagePlayer
@@ -795,10 +795,7 @@ function ReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="bg-[oklch(0.13_0_0)] border-white/10"
-        data-ocid="chat.dialog"
-      >
+      <DialogContent className="bg-card border-border" data-ocid="chat.dialog">
         <DialogHeader>
           <DialogTitle className="text-foreground">Report User</DialogTitle>
         </DialogHeader>
@@ -811,7 +808,7 @@ function ReportDialog({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Describe the issue..."
-            className="bg-white/5 border-white/10 resize-none"
+            className="bg-muted/30 border-border resize-none"
             rows={4}
             data-ocid="chat.textarea"
           />
@@ -1041,11 +1038,11 @@ function ChatWindow({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-[oklch(0.11_0_0)]">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border tg-topbar">
         <button
           type="button"
           onClick={onBack}
-          className="md:hidden p-1.5 rounded-lg hover:bg-white/5 text-muted-foreground"
+          className="md:hidden p-1.5 rounded-lg tg-hover text-muted-foreground"
           data-ocid="chat.secondary_button"
         >
           <ChevronLeft className="w-5 h-5" />
@@ -1067,8 +1064,8 @@ function ChatWindow({
             <div
               className={`w-2 h-2 rounded-full flex-shrink-0 ${
                 contactProfile.isOnline
-                  ? "bg-[oklch(0.72_0.2_145)] online-pulse"
-                  : "bg-[oklch(0.45_0_0)]"
+                  ? "bg-[oklch(0.72_0.18_145)] online-pulse"
+                  : "bg-muted-foreground/30"
               }`}
             />
           )}
@@ -1084,10 +1081,7 @@ function ChatWindow({
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="bg-[oklch(0.14_0_0)] border-white/10"
-            >
+            <DropdownMenuContent align="end" className="bg-card border-border">
               <DropdownMenuItem
                 onClick={handleBlock}
                 className="text-sm cursor-pointer"
@@ -1119,7 +1113,10 @@ function ChatWindow({
       )}
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-y-auto px-4 py-3 tg-chatbg"
+      >
         {unified.length === 0 ? (
           <div
             className="text-center py-12 text-muted-foreground"
@@ -1154,7 +1151,7 @@ function ChatWindow({
       </div>
 
       {/* Input area */}
-      <div className="px-4 py-3 border-t border-white/5 bg-[oklch(0.11_0_0)]">
+      <div className="px-4 py-3 border-t border-border tg-topbar">
         <AnimatePresence mode="wait">
           {showVoiceRecorder ? (
             <motion.div
@@ -1196,7 +1193,7 @@ function ChatWindow({
                         className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono border transition-all ${
                           ghostTimer === t
                             ? "bg-purple-500/20 border-purple-500/50 text-purple-400"
-                            : "bg-white/5 border-white/10 text-muted-foreground hover:border-white/20"
+                            : "bg-muted/30 border-border text-muted-foreground hover:border-white/20"
                         }`}
                         data-ocid="chat.toggle"
                       >
@@ -1228,7 +1225,7 @@ function ChatWindow({
                           className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono border transition-all ${
                             capsuleDelay === d
                               ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
-                              : "bg-white/5 border-white/10 text-muted-foreground hover:border-white/20"
+                              : "bg-muted/30 border-border text-muted-foreground hover:border-white/20"
                           }`}
                           data-ocid="chat.toggle"
                         >
@@ -1244,7 +1241,7 @@ function ChatWindow({
                         min={new Date(Date.now() + 60000)
                           .toISOString()
                           .slice(0, 16)}
-                        className="ml-1 bg-[oklch(0.12_0_0)] border border-amber-500/30 text-amber-400 text-[11px] rounded-lg px-2 py-0.5 focus:outline-none focus:border-amber-500/60 [color-scheme:dark]"
+                        className="ml-1 bg-card border border-amber-500/30 text-amber-400 text-[11px] rounded-lg px-2 py-0.5 focus:outline-none focus:border-amber-500/60 [color-scheme:dark]"
                         data-ocid="chat.input"
                       />
                     )}
@@ -1265,7 +1262,7 @@ function ChatWindow({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
-                    className="w-64 p-2 bg-[oklch(0.14_0_0)] border-white/10"
+                    className="w-64 p-2 bg-card border-border"
                     side="top"
                     align="start"
                     data-ocid="chat.popover"
@@ -1279,7 +1276,7 @@ function ChatWindow({
                             setInput((prev) => prev + emoji);
                             setEmojiOpen(false);
                           }}
-                          className="text-lg h-8 w-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                          className="text-lg h-8 w-8 flex items-center justify-center rounded hover:bg-muted/60 transition-colors"
                         >
                           {emoji}
                         </button>
@@ -1378,7 +1375,7 @@ function ChatWindow({
                             : "Message..."
                   }
                   disabled={isBlocked}
-                  className={`flex-1 bg-white/5 border-white/10 focus:border-primary/40 rounded-xl h-9 text-sm ${
+                  className={`flex-1 bg-muted/30 border-border focus:border-primary/40 rounded-xl h-9 text-sm ${
                     burnMode
                       ? "border-dashed border-red-500/40 focus:border-red-500/60"
                       : ghostMode
@@ -1495,8 +1492,8 @@ function ContactRow({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left ${
-        isActive ? "bg-primary/10 border-r-2 border-primary" : ""
+      className={`w-full flex items-center gap-3 px-4 py-3 tg-hover transition-colors text-left ${
+        isActive ? "tg-active border-r-2 border-primary" : ""
       }`}
       data-ocid="chat.row"
     >
@@ -1516,7 +1513,7 @@ function ContactRow({
           className={`w-2 h-2 rounded-full flex-shrink-0 ${
             profile.isOnline
               ? "bg-[oklch(0.72_0.2_145)]"
-              : "bg-[oklch(0.45_0_0)]"
+              : "bg-muted-foreground/30"
           }`}
         />
       )}
@@ -1601,20 +1598,20 @@ export function ChatView({
     <div className="flex h-full w-full overflow-hidden">
       {/* Left panel */}
       <div
-        className={`flex flex-col border-r border-white/5 bg-[oklch(0.10_0_0)] ${
+        className={`flex flex-col border-r border-border bg-sidebar ${
           showMobileChat
             ? "hidden md:flex md:w-72 lg:w-80"
             : "flex w-full md:w-72 lg:w-80"
         }`}
       >
-        <div className="p-3 border-b border-white/5">
+        <div className="p-3 border-b border-border">
           <div className="flex gap-2">
             <Input
               value={searchId}
               onChange={(e) => setSearchId(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               placeholder="+777 XXXX XXXX"
-              className="bg-white/5 border-white/10 text-xs font-mono h-9 focus:border-primary/40"
+              className="bg-muted/30 border-border text-xs font-mono h-9 focus:border-primary/40"
               data-ocid="chat.search_input"
             />
             <Button

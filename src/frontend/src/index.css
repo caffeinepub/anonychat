@@ -25,42 +25,72 @@
 
 @layer base {
   :root {
-    --radius: 0.75rem;
-    --background: 0.09 0 0;
-    --foreground: 0.97 0 0;
-    --card: 0.13 0 0;
-    --card-foreground: 0.97 0 0;
-    --popover: 0.13 0 0;
-    --popover-foreground: 0.97 0 0;
-    --primary: 0.75 0.2 200;
-    --primary-foreground: 0.09 0 0;
-    --secondary: 0.18 0 0;
-    --secondary-foreground: 0.97 0 0;
-    --muted: 0.18 0 0;
-    --muted-foreground: 0.55 0 0;
-    --accent: 0.75 0.2 200;
-    --accent-foreground: 0.09 0 0;
+    --radius: 0.5rem;
+
+    /* ── Telegram Dark Palette (OKLCH) ─────────────────────────────────────── */
+    /* #17212B — main background                                               */
+    --background: 0.19 0.025 240;
+    /* #F5F5F5-ish foreground                                                  */
+    --foreground: 0.93 0.005 240;
+
+    /* #1C2733 — card/popover surfaces                                         */
+    --card: 0.22 0.03 238;
+    --card-foreground: 0.93 0.005 240;
+    --popover: 0.22 0.03 238;
+    --popover-foreground: 0.93 0.005 240;
+
+    /* #2CA5E0 — Telegram blue accent                                          */
+    --primary: 0.65 0.15 210;
+    --primary-foreground: 0.98 0 0;
+
+    /* #1C2733 — secondary surfaces                                            */
+    --secondary: 0.22 0.03 238;
+    --secondary-foreground: 0.93 0.005 240;
+
+    /* #253340 — muted surfaces                                                */
+    --muted: 0.26 0.03 238;
+    --muted-foreground: 0.58 0.01 240;
+
+    /* #2CA5E0 — accent same as primary for Telegram                          */
+    --accent: 0.65 0.15 210;
+    --accent-foreground: 0.98 0 0;
+
+    /* destructive stays red                                                   */
     --destructive: 0.577 0.245 27.325;
     --destructive-foreground: 0.985 0 0;
-    --border: 1 0 0 / 8%;
-    --input: 1 0 0 / 10%;
-    --ring: 0.75 0.2 200;
-    --chart-1: 0.75 0.2 200;
-    --chart-2: 0.696 0.17 162.48;
-    --chart-3: 0.769 0.188 70.08;
-    --chart-4: 0.627 0.265 303.9;
-    --chart-5: 0.645 0.246 16.439;
-    --sidebar: 0.11 0 0;
-    --sidebar-foreground: 0.97 0 0;
-    --sidebar-primary: 0.75 0.2 200;
-    --sidebar-primary-foreground: 0.09 0 0;
-    --sidebar-accent: 0.18 0 0;
-    --sidebar-accent-foreground: 0.97 0 0;
-    --sidebar-border: 1 0 0 / 8%;
-    --sidebar-ring: 0.75 0.2 200;
-    --cyan-glow: oklch(0.75 0.2 200);
-    --online-green: oklch(0.72 0.2 145);
-    --offline-gray: oklch(0.45 0 0);
+
+    /* borders — subtle blue-tinted white                                      */
+    --border: 1 0.01 230 / 10%;
+    --input: 1 0.01 230 / 12%;
+    --ring: 0.65 0.15 210;
+
+    /* charts                                                                  */
+    --chart-1: 0.65 0.15 210;
+    --chart-2: 0.72 0.12 162;
+    --chart-3: 0.75 0.14 70;
+    --chart-4: 0.65 0.22 300;
+    --chart-5: 0.65 0.22 16;
+
+    /* #0E1621 — sidebar (chat list panel)                                     */
+    --sidebar: 0.13 0.025 240;
+    --sidebar-foreground: 0.93 0.005 240;
+    --sidebar-primary: 0.65 0.15 210;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.22 0.03 238;
+    --sidebar-accent-foreground: 0.93 0.005 240;
+    --sidebar-border: 1 0.01 230 / 8%;
+    --sidebar-ring: 0.65 0.15 210;
+
+    /* Custom semantic tokens                                                  */
+    --tg-blue: oklch(0.65 0.15 210);
+    --tg-bg: oklch(0.19 0.025 240);
+    --tg-sidebar: oklch(0.13 0.025 240);
+    --tg-sent: oklch(0.38 0.09 240); /* #2B5278 sent bubble                */
+    --tg-received: oklch(0.2 0.03 232); /* #182533 received bubble           */
+    --tg-hover: oklch(0.24 0.03 238);
+    --tg-selected: oklch(0.28 0.05 235);
+    --online-green: oklch(0.72 0.18 145);
+    --offline-gray: oklch(0.45 0.005 240);
   }
 
   * {
@@ -83,27 +113,29 @@
     font-family: "JetBrains Mono", "Geist Mono", monospace;
   }
 
+  /* Telegram-style glass card */
   .glass-card {
-    background: oklch(0.14 0 0 / 80%);
-    backdrop-filter: blur(20px);
-    border: 1px solid oklch(1 0 0 / 8%);
-    box-shadow: 0 0 0 1px oklch(0.75 0.2 200 / 12%), 0 20px 60px
-      oklch(0 0 0 / 50%), inset 0 1px 0 oklch(1 0 0 / 6%);
+    background: oklch(0.22 0.03 238 / 92%);
+    backdrop-filter: blur(12px);
+    border: 1px solid oklch(1 0.01 230 / 10%);
+    box-shadow: 0 2px 12px oklch(0 0 0 / 40%);
   }
 
+  /* Telegram blue glow text */
   .glow-text {
-    text-shadow: 0 0 30px oklch(0.75 0.2 200 / 60%);
+    text-shadow: 0 0 24px oklch(0.65 0.15 210 / 50%);
   }
 
+  /* Telegram blue glow border */
   .glow-border {
-    box-shadow: 0 0 20px oklch(0.75 0.2 200 / 20%);
+    box-shadow: 0 0 16px oklch(0.65 0.15 210 / 20%);
   }
 
   .shimmer {
     background: linear-gradient(
       90deg,
       transparent,
-      oklch(0.75 0.2 200 / 8%),
+      oklch(0.65 0.15 210 / 6%),
       transparent
     );
     background-size: 200% 100%;
@@ -117,6 +149,20 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Telegram sent message bubble */
+  .bubble-sent {
+    background: var(--tg-sent);
+    border-radius: 18px 18px 4px 18px;
+    box-shadow: 0 1px 2px oklch(0 0 0 / 30%);
+  }
+
+  /* Telegram received message bubble */
+  .bubble-received {
+    background: var(--tg-received);
+    border-radius: 18px 18px 18px 4px;
+    box-shadow: 0 1px 2px oklch(0 0 0 / 30%);
   }
 }
 
@@ -154,10 +200,10 @@
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 6px 2px oklch(0.72 0.2 145 / 60%);
+    box-shadow: 0 0 6px 2px oklch(0.72 0.18 145 / 60%);
   }
   50% {
-    box-shadow: 0 0 12px 4px oklch(0.72 0.2 145 / 90%);
+    box-shadow: 0 0 12px 4px oklch(0.72 0.18 145 / 90%);
   }
 }
 
@@ -196,11 +242,11 @@
   }
   90% {
     transform: translate(-2px, 1px);
-    text-shadow: 2px 0 oklch(0.627 0.265 303.9), -2px 0 oklch(0.75 0.2 200);
+    text-shadow: 2px 0 oklch(0.627 0.265 303.9), -2px 0 oklch(0.65 0.15 210);
   }
   92% {
     transform: translate(2px, -1px);
-    text-shadow: -2px 0 oklch(0.627 0.265 303.9), 2px 0 oklch(0.75 0.2 200);
+    text-shadow: -2px 0 oklch(0.627 0.265 303.9), 2px 0 oklch(0.65 0.15 210);
   }
   94% {
     transform: translate(-1px, 2px);
@@ -236,23 +282,11 @@
 .glitch {
   animation: glitch 6s ease-in-out infinite;
 }
-
 .animate-phantom-pulse {
   animation: phantom-pulse 2.5s ease-in-out infinite;
 }
-
 .animate-matrix-fade {
   animation: matrix-fade 4s ease-in-out infinite;
-}
-
-/* Sent message gradient */
-.bubble-sent {
-  background: linear-gradient(
-    135deg,
-    oklch(0.35 0.15 280),
-    oklch(0.28 0.18 290)
-  );
-  box-shadow: 0 0 12px oklch(0.627 0.265 303.9 / 15%);
 }
 
 /* Ghost message blur */
@@ -282,4 +316,89 @@
 .bubble-capsule {
   animation: capsule-glow 2s ease-in-out infinite;
   border: 1px solid oklch(0.769 0.188 70 / 40%);
+}
+
+/* ─── Telegram-specific UI patterns ──────────────────────────────────────── */
+
+/* Top bar — same as #17212B bg */
+.tg-topbar {
+  background: oklch(0.19 0.025 240);
+  border-bottom: 1px solid oklch(1 0.01 230 / 8%);
+}
+
+/* Chat list sidebar — #0E1621 */
+.tg-sidebar {
+  background: oklch(0.13 0.025 240);
+}
+
+/* Chat window background */
+.tg-chatbg {
+  background: oklch(0.17 0.025 238);
+}
+
+/* Active/selected list item */
+.tg-active {
+  background: oklch(0.65 0.15 210 / 18%);
+}
+
+/* Hover state for list items */
+.tg-hover:hover {
+  background: oklch(0.24 0.03 238);
+}
+
+/* Telegram input bar */
+.tg-input {
+  background: oklch(0.22 0.03 238);
+  border: 1px solid oklch(1 0.01 230 / 10%);
+  border-radius: 24px;
+}
+
+/* Telegram blue button */
+.tg-btn-primary {
+  background: oklch(0.65 0.15 210);
+  color: oklch(0.98 0 0);
+  border-radius: 20px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.tg-btn-primary:hover {
+  background: oklch(0.68 0.15 210);
+}
+
+/* Badge (unread count) */
+.tg-badge {
+  background: oklch(0.65 0.15 210);
+  color: oklch(0.98 0 0);
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+}
+
+/* Muted badge */
+.tg-badge-muted {
+  background: oklch(0.45 0.005 240);
+}
+
+/* Telegram divider */
+.tg-divider {
+  border-color: oklch(1 0.01 230 / 8%);
+}
+
+/* Scroll thumb */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.35 0.02 240);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.45 0.02 240);
 }

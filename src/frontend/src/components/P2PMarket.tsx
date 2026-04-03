@@ -594,7 +594,7 @@ function CurrencyChips({
             "flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all",
             selected === c.code
               ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
-              : "bg-white/5 text-zinc-400 border-white/10 hover:border-white/25",
+              : "bg-muted/30 text-zinc-400 border-border hover:border-white/25",
           )}
         >
           {c.symbol} {c.code}
@@ -833,7 +833,7 @@ function ActivityFeed() {
   }, []);
 
   return (
-    <div className="mb-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-2.5 overflow-hidden">
+    <div className="mb-3 bg-muted/30 border border-border rounded-xl px-4 py-2.5 flex items-center gap-2.5 overflow-hidden">
       <Zap className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
       <div className="flex-1 overflow-hidden">
         <p
@@ -858,7 +858,7 @@ function ActivityFeed() {
 function RarityBadge({ rarity }: { rarity: Rarity }) {
   if (rarity === "ultra") {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/30">
         <Gem className="w-2.5 h-2.5" />
         Ultra 💎
       </span>
@@ -1144,14 +1144,14 @@ function CopyBox({
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2 bg-white/5 rounded-lg border border-white/10 px-3 py-2.5">
+      <div className="flex items-center gap-2 bg-muted/30 rounded-lg border border-border px-3 py-2.5">
         <span className="font-mono text-sm text-primary flex-1 break-all leading-snug">
           {value}
         </span>
         <button
           type="button"
           onClick={handleCopy}
-          className="flex-shrink-0 p-1.5 rounded hover:bg-white/10 transition-colors"
+          className="flex-shrink-0 p-1.5 rounded hover:bg-muted/60 transition-colors"
           aria-label="Copy to clipboard"
         >
           {copied ? (
@@ -1258,7 +1258,7 @@ function FakeBuyFlowSheet({
     <Sheet open={open} onOpenChange={(v) => !v && step < 6 && onClose()}>
       <SheetContent
         side="bottom"
-        className="bg-[oklch(0.11_0_0)] border-t border-white/10 rounded-t-2xl max-h-[92dvh] overflow-y-auto px-4 pb-10"
+        className="bg-background border-t border-border rounded-t-2xl max-h-[92dvh] overflow-y-auto px-4 pb-10"
         data-ocid="p2p.sheet"
       >
         <SheetHeader className="mb-4 text-left">
@@ -1282,7 +1282,7 @@ function FakeBuyFlowSheet({
                   {listing.anonId}
                 </span>
               </div>
-              <Separator className="bg-white/5" />
+              <Separator className="bg-muted/30" />
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Price</span>
                 <span className="text-xl font-bold text-emerald-400">
@@ -1430,7 +1430,7 @@ function FakeBuyFlowSheet({
                   onChange={setSelectedCurrency}
                 />
               </div>
-              <Separator className="bg-white/5" />
+              <Separator className="bg-muted/30" />
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">
                   Amount to Send
@@ -1449,13 +1449,13 @@ function FakeBuyFlowSheet({
                   })()}
                 </span>
               </div>
-              <Separator className="bg-white/5" />
+              <Separator className="bg-muted/30" />
               {/* Payment method badge */}
               <div className="flex items-center gap-2 py-1">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
                   Ödeme Yöntemi
                 </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-foreground">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted/30 border border-border text-foreground">
                   {selectedCurrency === "USDT"
                     ? "💎 USDT (TRC20/ERC20)"
                     : selectedCurrency === "BTC"
@@ -1465,19 +1465,19 @@ function FakeBuyFlowSheet({
                         : "🏦 Banka Transferi"}
                 </span>
               </div>
-              <Separator className="bg-white/5" />
+              <Separator className="bg-muted/30" />
               {selectedCurrency === "USDT" ||
               selectedCurrency === "BTC" ||
               selectedCurrency === "ETH" ? (
-                <div className="bg-purple-950/30 border border-purple-700/30 rounded-xl p-3.5 space-y-2">
-                  <p className="text-xs text-purple-300 font-semibold">
+                <div className="bg-card border border-border rounded-xl p-3.5 space-y-2">
+                  <p className="text-xs text-primary font-semibold">
                     {selectedCurrency === "USDT"
                       ? "💎 USDT Cüzdan Adresi"
                       : selectedCurrency === "BTC"
                         ? "₿ Bitcoin Adresi"
                         : "Ξ Ethereum Adresi"}
                   </p>
-                  <p className="text-xs text-purple-200/70">
+                  <p className="text-xs text-muted-foreground">
                     Satıcının kripto adresi bilgi bekleniyor
                   </p>
                 </div>
@@ -1553,7 +1553,7 @@ function FakeBuyFlowSheet({
                   Seller will confirm once transfer is received
                 </p>
               </div>
-              <Separator className="bg-white/5" />
+              <Separator className="bg-muted/30" />
               <div className="text-left">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
                   Your Reference Code
@@ -1592,7 +1592,7 @@ function FakeBuyFlowSheet({
                     "border-2 border-dashed rounded-xl p-6 text-center transition-colors",
                     imagePreview
                       ? "border-primary/50 bg-primary/5"
-                      : "border-white/15 hover:border-white/30",
+                      : "border-border hover:border-border",
                   )}
                   data-ocid="p2p.dropzone"
                 >
@@ -1623,7 +1623,7 @@ function FakeBuyFlowSheet({
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-white/15 hover:bg-white/5"
+                className="flex-1 border-border hover:bg-muted/40"
                 onClick={() => setStep(5)}
                 data-ocid="p2p.secondary_button"
               >
@@ -1712,7 +1712,7 @@ function FakeBuyFlowSheet({
             </motion.div>
             <Button
               variant="outline"
-              className="w-full border-white/15 hover:bg-white/5"
+              className="w-full border-border hover:bg-muted/40"
               onClick={onClose}
               data-ocid="p2p.close_button"
             >
@@ -1842,7 +1842,7 @@ function FakeListingCard({ listing, index, onBuyClick }: FakeListingCardProps) {
       </div>
 
       <TrustBar />
-      <Separator className="bg-white/5 my-3" />
+      <Separator className="bg-muted/30 my-3" />
 
       {/* CTA area */}
       {showCountdown ? (
@@ -2006,7 +2006,7 @@ function RealBuyFlowSheet({
     >
       <SheetContent
         side="bottom"
-        className="bg-[oklch(0.11_0_0)] border-t border-white/10 rounded-t-2xl max-h-[92dvh] overflow-y-auto px-4 pb-10"
+        className="bg-background border-t border-border rounded-t-2xl max-h-[92dvh] overflow-y-auto px-4 pb-10"
         data-ocid="p2p.sheet"
       >
         <SheetHeader className="mb-4 text-left">
@@ -2030,7 +2030,7 @@ function RealBuyFlowSheet({
                   {listing.listedAnonId}
                 </span>
               </div>
-              <Separator className="bg-white/5" />
+              <Separator className="bg-muted/30" />
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Price</span>
                 <span className="text-xl font-bold text-emerald-400">
@@ -2097,7 +2097,7 @@ function RealBuyFlowSheet({
                   onChange={setSelectedCurrencyReal}
                 />
               </div>
-              <Separator className="bg-white/5" />
+              <Separator className="bg-muted/30" />
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Amount</span>
                 <span className="text-xl font-bold text-emerald-400">
@@ -2115,13 +2115,13 @@ function RealBuyFlowSheet({
                   })()}
                 </span>
               </div>
-              <Separator className="bg-white/5" />
+              <Separator className="bg-muted/30" />
               {/* Payment method badge */}
               <div className="flex items-center gap-2 py-1">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
                   Ödeme Yöntemi
                 </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-foreground">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted/30 border border-border text-foreground">
                   {selectedCurrencyReal === "USDT"
                     ? "💎 USDT (TRC20/ERC20)"
                     : selectedCurrencyReal === "BTC"
@@ -2131,19 +2131,19 @@ function RealBuyFlowSheet({
                         : "🏦 Banka Transferi"}
                 </span>
               </div>
-              <Separator className="bg-white/5" />
+              <Separator className="bg-muted/30" />
               {selectedCurrencyReal === "USDT" ||
               selectedCurrencyReal === "BTC" ||
               selectedCurrencyReal === "ETH" ? (
-                <div className="bg-purple-950/30 border border-purple-700/30 rounded-xl p-3.5 space-y-2">
-                  <p className="text-xs text-purple-300 font-semibold">
+                <div className="bg-card border border-border rounded-xl p-3.5 space-y-2">
+                  <p className="text-xs text-primary font-semibold">
                     {selectedCurrencyReal === "USDT"
                       ? "💎 USDT Cüzdan Adresi"
                       : selectedCurrencyReal === "BTC"
                         ? "₿ Bitcoin Adresi"
                         : "Ξ Ethereum Adresi"}
                   </p>
-                  <p className="text-xs text-purple-200/70">
+                  <p className="text-xs text-muted-foreground">
                     Satıcının kripto adresi bilgi bekleniyor
                   </p>
                 </div>
@@ -2238,7 +2238,7 @@ function RealBuyFlowSheet({
                     "border-2 border-dashed rounded-xl p-6 text-center transition-colors",
                     imagePreview
                       ? "border-primary/50 bg-primary/5"
-                      : "border-white/15 hover:border-white/30",
+                      : "border-border hover:border-border",
                   )}
                   data-ocid="p2p.dropzone"
                 >
@@ -2269,14 +2269,14 @@ function RealBuyFlowSheet({
                 placeholder="Transaction reference number"
                 value={refCode}
                 onChange={(e) => setRefCode(e.target.value)}
-                className="bg-white/5 border-white/10 focus:border-primary/50 font-mono text-sm"
+                className="bg-muted/30 border-border focus:border-primary/50 font-mono text-sm"
                 data-ocid="p2p.input"
               />
             </div>
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-white/15 hover:bg-white/5"
+                className="flex-1 border-border hover:bg-muted/40"
                 onClick={handleSubmitProof}
                 disabled={loading}
                 data-ocid="p2p.secondary_button"
@@ -2322,7 +2322,7 @@ function RealBuyFlowSheet({
             </div>
             <Button
               variant="outline"
-              className="w-full border-white/15 hover:bg-white/5"
+              className="w-full border-border hover:bg-muted/40"
               onClick={() => setStep(6)}
               data-ocid="p2p.primary_button"
             >
@@ -2355,7 +2355,7 @@ function RealBuyFlowSheet({
             </div>
             <Button
               variant="outline"
-              className="border-white/10 hover:bg-white/5 w-full"
+              className="border-border hover:bg-muted/40 w-full"
               onClick={onClose}
               data-ocid="p2p.close_button"
             >
@@ -2428,7 +2428,7 @@ function DisputeSheet({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="bottom"
-        className="bg-[oklch(0.11_0_0)] border-t border-white/10 rounded-t-2xl max-h-[80dvh] overflow-y-auto px-4 pb-10"
+        className="bg-background border-t border-border rounded-t-2xl max-h-[80dvh] overflow-y-auto px-4 pb-10"
         data-ocid="p2p.sheet"
       >
         <SheetHeader className="mb-4 text-left">
@@ -2453,7 +2453,7 @@ function DisputeSheet({
             </div>
             <Button
               variant="outline"
-              className="w-full border-white/15 hover:bg-white/5"
+              className="w-full border-border hover:bg-muted/40"
               onClick={onClose}
               data-ocid="p2p.close_button"
             >
@@ -2479,7 +2479,7 @@ function DisputeSheet({
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Neden anlaşmazlık açıyorsunuz? Detaylı açıklayın..."
                 rows={4}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500/50 text-foreground placeholder:text-muted-foreground resize-none"
+                className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500/50 text-foreground placeholder:text-muted-foreground resize-none"
                 data-ocid="p2p.textarea"
               />
             </div>
@@ -2492,7 +2492,7 @@ function DisputeSheet({
                 placeholder="İşlem referans numarası, ekran görüntüsü açıklaması..."
                 value={evidence}
                 onChange={(e) => setEvidence(e.target.value)}
-                className="bg-white/5 border-white/10 focus:border-orange-500/50 font-mono text-sm"
+                className="bg-muted/30 border-border focus:border-orange-500/50 font-mono text-sm"
                 data-ocid="p2p.input"
               />
             </div>
@@ -2500,7 +2500,7 @@ function DisputeSheet({
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-white/15 hover:bg-white/5"
+                className="flex-1 border-border hover:bg-muted/40"
                 onClick={onClose}
                 data-ocid="p2p.cancel_button"
               >
@@ -2576,7 +2576,7 @@ function AdminDialog({ open, onClose, myAnonId, onListed }: AdminDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="bg-[oklch(0.13_0_0)] border border-white/10 text-foreground max-w-sm"
+        className="bg-card border border-border text-foreground max-w-sm"
         data-ocid="p2p.dialog"
       >
         <DialogHeader>
@@ -2593,13 +2593,13 @@ function AdminDialog({ open, onClose, myAnonId, onListed }: AdminDialogProps) {
               Preview ID
             </Label>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm text-primary flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+              <span className="font-mono text-sm text-primary flex-1 bg-muted/30 border border-border rounded-lg px-3 py-2">
                 {generatedId}
               </span>
               <Button
                 variant="outline"
                 size="sm"
-                className="border-white/15 hover:bg-white/10 h-9 px-3 text-xs flex-shrink-0"
+                className="border-border hover:bg-muted/60 h-9 px-3 text-xs flex-shrink-0"
                 onClick={generatePreviewId}
                 data-ocid="p2p.secondary_button"
               >
@@ -2618,12 +2618,12 @@ function AdminDialog({ open, onClose, myAnonId, onListed }: AdminDialogProps) {
               onValueChange={(v) => setRarity(v as Rarity)}
             >
               <SelectTrigger
-                className="bg-white/5 border-white/10 focus:ring-primary/30 h-9 text-sm"
+                className="bg-muted/30 border-border focus:ring-primary/30 h-9 text-sm"
                 data-ocid="p2p.select"
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[oklch(0.16_0_0)] border-white/10">
+              <SelectContent className="bg-card border-border">
                 <SelectItem value="normal">Normal</SelectItem>
                 <SelectItem value="rare">Rare 🔥</SelectItem>
                 <SelectItem value="ultra">Ultra 💎</SelectItem>
@@ -2642,7 +2642,7 @@ function AdminDialog({ open, onClose, myAnonId, onListed }: AdminDialogProps) {
               min="0"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              className="bg-white/5 border-white/10 focus:border-primary/50 h-9 text-sm"
+              className="bg-muted/30 border-border focus:border-primary/50 h-9 text-sm"
               data-ocid="p2p.input"
             />
           </div>
@@ -2655,7 +2655,7 @@ function AdminDialog({ open, onClose, myAnonId, onListed }: AdminDialogProps) {
             <Input
               value={iban}
               onChange={(e) => setIban(e.target.value)}
-              className="bg-white/5 border-white/10 focus:border-primary/50 font-mono text-xs h-9"
+              className="bg-muted/30 border-border focus:border-primary/50 font-mono text-xs h-9"
               data-ocid="p2p.input"
             />
           </div>
@@ -2766,9 +2766,9 @@ function TradeChatSheet({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="bottom"
-        className="h-[85vh] flex flex-col bg-zinc-950 border-white/10 p-0 rounded-t-2xl"
+        className="h-[85vh] flex flex-col bg-background border-border p-0 rounded-t-2xl"
       >
-        <SheetHeader className="px-4 pt-4 pb-3 border-b border-white/10 flex-row items-center justify-between">
+        <SheetHeader className="px-4 pt-4 pb-3 border-b border-border flex-row items-center justify-between">
           <SheetTitle className="flex items-center gap-2 text-sm font-bold">
             <MessageCircle className="w-4 h-4 text-primary" />
             Trade Chat —{" "}
@@ -2777,7 +2777,7 @@ function TradeChatSheet({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 text-muted-foreground"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted/60 text-muted-foreground"
             data-ocid="p2p.close_button"
           >
             <X className="w-4 h-4" />
@@ -2785,7 +2785,7 @@ function TradeChatSheet({
         </SheetHeader>
 
         {!isActive && (
-          <div className="mx-4 mt-3 px-3 py-2 bg-zinc-800/60 border border-white/10 rounded-lg text-xs text-muted-foreground text-center">
+          <div className="mx-4 mt-3 px-3 py-2 bg-muted/50 border border-border rounded-lg text-xs text-muted-foreground text-center">
             Bu trade tamamlandı — sohbet salt okunur modda
           </div>
         )}
@@ -2808,7 +2808,7 @@ function TradeChatSheet({
                     "max-w-[75%] rounded-2xl px-3 py-2 space-y-0.5",
                     isMine
                       ? "bg-primary/20 border border-primary/30"
-                      : "bg-white/8 border border-white/10",
+                      : "bg-muted/20 border border-border",
                   )}
                 >
                   {!isMine && (
@@ -2830,14 +2830,14 @@ function TradeChatSheet({
         </div>
 
         {isActive && (
-          <div className="px-4 pb-4 pt-2 border-t border-white/8 flex gap-2">
+          <div className="px-4 pb-4 pt-2 border-t border-border/50 flex gap-2">
             <input
               type="text"
               value={msgText}
               onChange={(e) => setMsgText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
               placeholder="Mesajınızı yazın…"
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
+              className="flex-1 bg-muted/30 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
               data-ocid="p2p.input"
             />
             <Button
@@ -2903,9 +2903,9 @@ function RateSellerSheet({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="bottom"
-        className="h-auto bg-zinc-950 border-white/10 p-0 rounded-t-2xl"
+        className="h-auto bg-sidebar border-border p-0 rounded-t-2xl"
       >
-        <SheetHeader className="px-4 pt-4 pb-3 border-b border-white/10">
+        <SheetHeader className="px-4 pt-4 pb-3 border-b border-border">
           <SheetTitle className="flex items-center gap-2 text-sm font-bold">
             <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
             Satıcıyı Değerlendir
@@ -2943,14 +2943,14 @@ function RateSellerSheet({
               onChange={(e) => setComment(e.target.value)}
               placeholder="Nasıl bir deneyimdi?"
               rows={3}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
+              className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
               data-ocid="p2p.textarea"
             />
           </div>
           <div className="flex gap-3 pb-2">
             <Button
               variant="outline"
-              className="flex-1 border-white/10"
+              className="flex-1 border-border"
               onClick={onClose}
               data-ocid="p2p.cancel_button"
             >
@@ -3294,7 +3294,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
         >
           {/* Sticky tab bar */}
           <div className="sticky top-0 z-10 bg-background -mx-4 px-4 pb-2 pt-1">
-            <TabsList className="w-full bg-white/5 border border-white/10 h-9 p-0.5">
+            <TabsList className="w-full bg-muted/30 border border-border h-9 p-0.5">
               <TabsTrigger
                 value="market"
                 className="flex-1 text-xs h-8 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -3339,7 +3339,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                         e.target.value,
                       );
                     }}
-                    className="h-8 px-2 text-[11px] bg-white/5 border border-white/10 rounded-full text-foreground cursor-pointer"
+                    className="h-8 px-2 text-[11px] bg-muted/30 border border-border rounded-full text-foreground cursor-pointer"
                     data-ocid="p2p.select"
                   >
                     <option value="">🌍 Your Country</option>
@@ -3355,7 +3355,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                   <select
                     value={paymentFilter}
                     onChange={(e) => setPaymentFilter(e.target.value)}
-                    className="h-8 px-2 text-[11px] bg-white/5 border border-white/10 rounded-full text-foreground cursor-pointer"
+                    className="h-8 px-2 text-[11px] bg-muted/30 border border-border rounded-full text-foreground cursor-pointer"
                     data-ocid="p2p.select"
                   >
                     <option value="all">💳 Payment: Any</option>
@@ -3375,7 +3375,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                     "flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all",
                     sameCountryOnly
                       ? "bg-primary/20 text-primary border-primary/40"
-                      : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10",
+                      : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/60",
                   )}
                   data-ocid="p2p.toggle"
                 >
@@ -3417,7 +3417,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                           : f === "rare"
                             ? "bg-orange-500/20 text-orange-300 border-orange-500/40"
                             : "bg-primary/20 text-primary border-primary/40"
-                        : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10",
+                        : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/60",
                     )}
                     data-ocid="p2p.toggle"
                   >
@@ -3473,7 +3473,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                     </span>
                   </div>
                   <TrustBar />
-                  <Separator className="bg-white/5 my-3" />
+                  <Separator className="bg-muted/30 my-3" />
                   <Button
                     className="w-full h-10 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                     onClick={() => {
@@ -3623,7 +3623,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                   </div>
                 ))}
 
-                <Separator className="bg-white/5 my-2" />
+                <Separator className="bg-muted/30 my-2" />
 
                 {/* Create form or warning */}
                 {hasActiveListing ? (
@@ -3668,7 +3668,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                         placeholder="e.g. 50"
                         value={newPrice}
                         onChange={(e) => setNewPrice(e.target.value)}
-                        className="bg-white/5 border-white/10 focus:border-primary/50"
+                        className="bg-muted/30 border-border focus:border-primary/50"
                         data-ocid="p2p.input"
                       />
                     </div>
@@ -3690,7 +3690,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                                   : g.label,
                               )
                             }
-                            className={`text-[9px] font-semibold px-2 py-1 rounded-full border transition-all ${selectedPaymentGroup === g.label ? "bg-primary/20 border-primary/50 text-primary" : "bg-white/5 border-white/15 text-zinc-400 hover:bg-white/10"}`}
+                            className={`text-[9px] font-semibold px-2 py-1 rounded-full border transition-all ${selectedPaymentGroup === g.label ? "bg-primary/20 border-primary/50 text-primary" : "bg-muted/30 border-border text-zinc-400 hover:bg-muted/60"}`}
                           >
                             {g.label.split(" ")[0]}{" "}
                             {g.label.split(" ").slice(1).join(" ")}
@@ -3714,7 +3714,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                                   key={bank.id}
                                   type="button"
                                   onClick={() => setNewIban(bank.placeholder)}
-                                  className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-white/5 border-white/15 text-zinc-300 hover:bg-primary/20 hover:border-primary/40 hover:text-primary transition-all"
+                                  className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-muted/30 border-border text-zinc-300 hover:bg-primary/20 hover:border-primary/40 hover:text-primary transition-all"
                                 >
                                   {bank.name}
                                 </button>
@@ -3723,7 +3723,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                                 <button
                                   type="button"
                                   onClick={() => setShowAllBanks(true)}
-                                  className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-white/5 border-white/15 text-zinc-400 hover:bg-white/10 transition-all"
+                                  className="text-[9px] font-semibold px-2 py-1 rounded-full border bg-muted/30 border-border text-zinc-400 hover:bg-muted/60 transition-all"
                                 >
                                   +{grp.banks.length - 8} daha
                                 </button>
@@ -3741,7 +3741,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                         placeholder="IBAN, cüzdan adresi veya @kullanıcı"
                         value={newIban}
                         onChange={(e) => setNewIban(e.target.value)}
-                        className="bg-white/5 border-white/10 focus:border-primary/50 font-mono text-sm"
+                        className="bg-muted/30 border-border focus:border-primary/50 font-mono text-sm"
                         data-ocid="p2p.input"
                       />
                       <p className="text-[10px] text-muted-foreground mt-1">

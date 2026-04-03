@@ -221,7 +221,7 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
           <span className="text-sm font-medium">Referral Kodun</span>
         </div>
 
-        <div className="flex items-center gap-2 mb-3 bg-white/5 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 mb-3 bg-muted/30 rounded-xl px-4 py-3">
           <span className="font-mono text-primary flex-1 text-sm tracking-wider break-all">
             {referralCode ?? myAnonId}
           </span>
@@ -233,7 +233,7 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
             size="sm"
             onClick={handleCopy}
             data-ocid="earn.secondary_button"
-            className="flex-1 gap-2 border-white/10 bg-white/5 hover:bg-white/10 h-9 text-xs"
+            className="flex-1 gap-2 border-border bg-muted/30 hover:bg-muted/60 h-9 text-xs"
           >
             {copied ? (
               <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -247,14 +247,14 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
             size="sm"
             onClick={handleShare}
             data-ocid="earn.primary_button"
-            className="flex-1 gap-2 border-white/10 bg-white/5 hover:bg-white/10 h-9 text-xs"
+            className="flex-1 gap-2 border-border bg-muted/30 hover:bg-muted/60 h-9 text-xs"
           >
             <Share2 className="w-3.5 h-3.5" />
             Paylaş
           </Button>
         </div>
 
-        <Separator className="mb-4 bg-white/5" />
+        <Separator className="mb-4 bg-muted/30" />
 
         <p className="text-xs text-muted-foreground mb-2">
           Arkadaşının kodunu gir:
@@ -264,7 +264,7 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
             value={referralInput}
             onChange={(e) => setReferralInput(e.target.value)}
             placeholder="+777 XXXX XXXX"
-            className="flex-1 h-9 text-xs font-mono bg-white/5 border-white/10 focus:border-primary/50"
+            className="flex-1 h-9 text-xs font-mono bg-muted/30 border-border focus:border-primary/50"
             data-ocid="earn.input"
           />
           <Button
@@ -314,14 +314,14 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
           </div>
           <Progress
             value={Math.min(level1Count, 1) * 100}
-            className="h-1.5 bg-white/5 [&>div]:bg-emerald-500"
+            className="h-1.5 bg-muted/30 [&>div]:bg-emerald-500"
           />
           <p className="text-[10px] text-muted-foreground mt-1">
             {Math.min(level1Count, 1)}/1
           </p>
         </div>
 
-        <Separator className="mb-4 bg-white/5" />
+        <Separator className="mb-4 bg-muted/30" />
 
         {/* Level 2 */}
         <div className="mb-4">
@@ -338,14 +338,14 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
           </div>
           <Progress
             value={(Math.min(level1Count, 5) / 5) * 100}
-            className="h-1.5 bg-white/5 [&>div]:bg-sky-500"
+            className="h-1.5 bg-muted/30 [&>div]:bg-sky-500"
           />
           <p className="text-[10px] text-muted-foreground mt-1">
             {Math.min(level1Count, 5)}/5
           </p>
         </div>
 
-        <Separator className="mb-4 bg-white/5" />
+        <Separator className="mb-4 bg-muted/30" />
 
         {/* Level 3 */}
         <div>
@@ -368,7 +368,7 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
           </div>
         </div>
 
-        <Separator className="mt-4 mb-3 bg-white/5" />
+        <Separator className="mt-4 mb-3 bg-muted/30" />
 
         <div className="flex items-center gap-2">
           <Users className="w-3.5 h-3.5 text-muted-foreground" />
@@ -404,7 +404,7 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
               return (
                 <div
                   key={String(reward.id)}
-                  className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2.5"
+                  className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2.5"
                   data-ocid={`earn.item.${idx + 1}`}
                 >
                   <div>
@@ -466,7 +466,7 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
               return (
                 <div
                   key={String(reward.id)}
-                  className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2.5"
+                  className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2.5"
                   data-ocid={`earn.row.${idx + 1}`}
                 >
                   <div>
@@ -527,7 +527,7 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
           ].map(({ step, text, color }) => (
             <div key={step} className="flex items-start gap-3">
               <span
-                className={`w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 ${color}`}
+                className={`w-5 h-5 rounded-full bg-muted/30 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 ${color}`}
               >
                 {step}
               </span>
@@ -537,7 +537,7 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
             </div>
           ))}
         </div>
-        <Separator className="my-4 bg-white/5" />
+        <Separator className="my-4 bg-muted/30" />
         <div className="space-y-1.5">
           <p className="text-[10px] text-muted-foreground">
             ⚡ Günlük kazanım limiti: 100 AC
