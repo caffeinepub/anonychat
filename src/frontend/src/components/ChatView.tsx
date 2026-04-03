@@ -590,12 +590,12 @@ function MessageBubble({
           className={`flex ${isMine ? "justify-end" : "justify-start"} mb-1`}
         >
           <div
-            className={`relative max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words ${
+            className={`relative max-w-[75%] px-3 py-2 text-sm break-words ${
               isMine && isBurn
-                ? "bubble-burn text-foreground rounded-br-sm"
+                ? "bubble-burn text-foreground"
                 : isMine
-                  ? "bubble-sent text-foreground rounded-br-sm"
-                  : "bg-white/6 border border-border/50 text-foreground rounded-bl-sm"
+                  ? "bubble-sent text-foreground"
+                  : "bubble-received text-foreground"
             } ${getBubbleBorder()} ${msg.isGhost && !isMine ? "bubble-ghost" : ""} ${isCapsule ? "bubble-capsule" : ""}`}
           >
             {/* Burn countdown overlay */}
@@ -741,11 +741,7 @@ function VoiceBubble({
       className={`flex ${isMine ? "justify-end" : "justify-start"} mb-1`}
     >
       <div
-        className={`rounded-2xl px-3 py-2 ${
-          isMine
-            ? "bg-primary/20 border border-primary/30 rounded-br-sm"
-            : "bubble-received rounded-bl-sm"
-        }`}
+        className={`px-3 py-2 ${isMine ? "bubble-sent" : "bubble-received"}`}
       >
         <VoiceMessagePlayer
           audioHash={msg.audioHash}

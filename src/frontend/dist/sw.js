@@ -1,6 +1,6 @@
 self.addEventListener('push', function(event) {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'AnonChat';
+  const title = data.title || 'Vault777';
   const options = {
     body: data.body || 'Yeni bildirim',
     icon: '/icon-192.png',

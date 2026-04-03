@@ -257,8 +257,8 @@ function ProfileTab({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "My AnonChat ID",
-          text: `Chat with me on AnonChat: ${user.anonymousId}`,
+          title: "My Vault777 ID",
+          text: `Chat with me on Vault777: ${user.anonymousId}`,
         });
       } else {
         await navigator.clipboard.writeText(user.anonymousId);
@@ -574,7 +574,7 @@ function PWABanner({
             Ana ekrana ekle
           </p>
           <p className="text-xs text-muted-foreground truncate">
-            AnonChat'i yükle ve uygulama gibi kullan
+            Vault777'yi yükle ve uygulama gibi kullan
           </p>
         </div>
         <Button
@@ -799,7 +799,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
             <span className="font-semibold tracking-tight glitch">
-              Anon<span className="text-primary">Chat</span>
+              Vault<span className="text-primary">777</span>
             </span>
             {isLoggedIn && me && (
               <span className="w-2 h-2 rounded-full bg-[oklch(0.72_0.18_145)] online-pulse" />

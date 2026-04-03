@@ -136,8 +136,8 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "AnonChat — Kazan!",
-          text: `AnonChat'e katıl ve ${code} koduyla kayıt ol — her ikimiz de AnonCash kazanırız!`,
+          title: "Vault777 — Kazan!",
+          text: `Vault777'e katıl ve ${code} koduyla kayıt ol — her ikimiz de AnonCash kazanırız!`,
         });
       } else {
         await navigator.clipboard.writeText(code);
