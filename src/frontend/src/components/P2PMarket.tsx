@@ -71,8 +71,18 @@ type FakeBuyStep = 1 | 2 | 3 | 4 | 5 | 6;
 type RealBuyStep = 1 | 2 | 3 | 4 | 5 | 6;
 type Rarity = "normal" | "rare" | "ultra";
 type SellerKind = "user" | "admin";
-type ListingStatusKind = P2PListing["status"]["__kind__"];
-type TradeStatusKind = P2PTrade["status"]["__kind__"];
+type ListingStatusKind = "Active" | "Locked" | "Sold" | "Cancelled";
+type TradeStatusKind =
+  | "Pending"
+  | "PaymentSent"
+  | "Confirmed"
+  | "Rejected"
+  | "Disputed"
+  | "Cancelled";
+
+// ICP SDK returns variants as { Active: null }, not { __kind__: 'Active' }
+const vk = (s: unknown): string =>
+  (s && typeof s === "object" ? Object.keys(s)[0] : String(s)) ?? "";
 
 type PaymentMethodId = "iban" | "revolut" | "wise" | "zen";
 
@@ -3215,7 +3225,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
   });
 
   const hasActiveListing = myListings.some(
-    (l) => l.status.__kind__ === "Active" || l.status.__kind__ === "Locked",
+    (l) => vk(l.status) === "Active" || vk(l.status) === "Locked",
   );
 
   // Sort fake listings: admin first, then ultra→rare→normal, then price asc
@@ -3450,7 +3460,9 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                         {listing.listedAnonId}
                       </span>
                     </div>
-                    <ListingStatusBadge kind={listing.status.__kind__} />
+                    <ListingStatusBadge
+                      kind={vk(listing.status) as ListingStatusKind}
+                    />
                   </div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-2xl font-bold text-emerald-400">
@@ -3468,8 +3480,8 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                       const existingPending = trades.find(
                         (t) =>
                           t.listingId === listing.id &&
-                          (t.status.__kind__ === "Pending" ||
-                            t.status.__kind__ === "PaymentSent"),
+                          (vk(t.status) === "Pending" ||
+                            vk(t.status) === "PaymentSent"),
                       );
                       if (existingPending) {
                         setProofTrade(existingPending);
@@ -3479,10 +3491,10 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                         setRealBuyOpen(true);
                       }
                     }}
-                    disabled={listing.status.__kind__ === "Locked"}
+                    disabled={vk(listing.status) === "Locked"}
                     data-ocid="p2p.primary_button"
                   >
-                    {listing.status.__kind__ === "Locked" ? (
+                    {vk(listing.status) === "Locked" ? (
                       <>
                         <Lock className="w-4 h-4 mr-2" />
                         Trade in Progress
@@ -3584,7 +3596,9 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                           {listing.listedAnonId}
                         </span>
                       </div>
-                      <ListingStatusBadge kind={listing.status.__kind__} />
+                      <ListingStatusBadge
+                        kind={vk(listing.status) as ListingStatusKind}
+                      />
                     </div>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-bold text-emerald-400">
@@ -3594,7 +3608,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                         {listing.iban.slice(0, 8)}…{listing.iban.slice(-4)}
                       </span>
                     </div>
-                    {listing.status.__kind__ === "Active" && (
+                    {vk(listing.status) === "Active" && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -3791,7 +3805,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                 {trades.map((trade, i) => {
                   const isBuyer = trade.buyerAnonId === myAnonId;
                   const isSeller = trade.sellerAnonId === myAnonId;
-                  const statusKind = trade.status.__kind__;
+                  const statusKind = vk(trade.status) as TradeStatusKind;
 
                   return (
                     <motion.div
@@ -3851,7 +3865,7 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
                             { key: "Pending", label: "Bekliyor" },
                             { key: "PaymentSent", label: "Ödeme Gönderildi" },
                             { key: "Confirmed", label: "Onaylandı" },
-                            { key: "Completed", label: "Tamamlandı" },
+                            { key: "Confirmed", label: "Tamamlandı" },
                           ];
                           const cancelledOrDisputed =
                             statusKind === "Cancelled" ||
@@ -4145,8 +4159,8 @@ export function P2PMarket({ myAnonId }: { myAnonId: string }) {
             ? (trades.find(
                 (t) =>
                   t.listingId === selectedListing.id &&
-                  (t.status.__kind__ === "Pending" ||
-                    t.status.__kind__ === "PaymentSent"),
+                  (vk(t.status) === "Pending" ||
+                    vk(t.status) === "PaymentSent"),
               ) ?? null)
             : null
         }

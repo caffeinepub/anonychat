@@ -24,14 +24,13 @@ type IdSlotInfo = {
 };
 
 export function IDSlotsWidget({ primaryId }: { primaryId: string }) {
-  const actor = useActor();
+  const { actor } = useActor();
   const qc = useQueryClient();
 
   const { data: slotInfo, isLoading } = useQuery<IdSlotInfo>({
     queryKey: ["idSlotInfo"],
     queryFn: async () => {
       if (!actor) throw new Error("No actor");
-      // biome-ignore lint/suspicious/noExplicitAny: actor type
       return (actor as any).getIdSlotInfo();
     },
     enabled: !!actor,
@@ -41,7 +40,6 @@ export function IDSlotsWidget({ primaryId }: { primaryId: string }) {
   const createId = useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error("No actor");
-      // biome-ignore lint/suspicious/noExplicitAny: actor type
       return (actor as any).createAdditionalId();
     },
     onSuccess: (newId: string) => {
@@ -56,7 +54,6 @@ export function IDSlotsWidget({ primaryId }: { primaryId: string }) {
   const reclaimId = useMutation({
     mutationFn: async (anonId: string) => {
       if (!actor) throw new Error("No actor");
-      // biome-ignore lint/suspicious/noExplicitAny: actor type
       return (actor as any).reclaimId(anonId);
     },
     onSuccess: () => {

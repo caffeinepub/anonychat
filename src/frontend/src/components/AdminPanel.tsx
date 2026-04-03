@@ -57,7 +57,18 @@ interface AdminPanelProps {
   onClose: () => void;
 }
 
-type TradeStatusKind = P2PTrade["status"]["__kind__"];
+type TradeStatusKind =
+  | "Pending"
+  | "PaymentSent"
+  | "Confirmed"
+  | "Rejected"
+  | "Disputed"
+  | "Cancelled"
+  | "all";
+
+// ICP SDK returns variants as { Active: null }, not { __kind__: 'Active' }
+const vk = (s: unknown): string =>
+  (s && typeof s === "object" ? Object.keys(s)[0] : String(s)) ?? "";
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   Pending: {
@@ -130,7 +141,7 @@ function TradeCard({
   onResolve?: (tradeId: bigint, favorBuyer: boolean) => Promise<void>;
   resolving?: boolean;
 }) {
-  const statusKind = trade.status.__kind__;
+  const statusKind = vk(trade.status);
   const cfg = getStatusConfig(statusKind);
   const tradeId = trade.id;
 
@@ -218,13 +229,11 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
   const [loadingTrades, setLoadingTrades] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingDisputes, setLoadingDisputes] = useState(false);
-  const [tradeFilter, setTradeFilter] = useState<TradeStatusKind | "all">(
-    "all",
-  );
+  const [tradeFilter, setTradeFilter] = useState<TradeStatusKind>("all");
   const [resolvingId, setResolvingId] = useState<bigint | null>(null);
   const [freezingId, setFreezingId] = useState<string | null>(null);
   const [frozenUsers, setFrozenUsers] = useState<Set<string>>(new Set());
-  const [unauthorized, setUnauthorized] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(true);
   const [pinUnlocked, setPinUnlocked] = useState(
     () => sessionStorage.getItem("adminPinUnlocked") === "1",
   );
@@ -236,6 +245,10 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
       sessionStorage.setItem("adminPinUnlocked", "1");
       setPinUnlocked(true);
       setUnauthorized(false);
+      void fetchDashboard();
+      void fetchTrades();
+      void fetchUsers();
+      void fetchDisputedTrades();
     } else {
       setPinError(true);
       setTimeout(() => setPinError(false), 1500);
@@ -359,7 +372,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
   const filteredTrades =
     tradeFilter === "all"
       ? allTrades
-      : allTrades.filter((t) => t.status.__kind__ === tradeFilter);
+      : allTrades.filter((t) => vk(t.status) === tradeFilter);
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -574,7 +587,7 @@ export function AdminPanel({ open, onClose }: AdminPanelProps) {
                         key={String(trade.id)}
                         trade={trade}
                         onResolve={
-                          trade.status.__kind__ === "Disputed"
+                          vk(trade.status) === "Disputed"
                             ? handleResolveDispute
                             : undefined
                         }

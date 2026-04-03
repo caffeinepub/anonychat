@@ -65,6 +65,7 @@ export function EarnTab({ myAnonId }: { myAnonId: string }) {
     },
     enabled: isReady,
     staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery<ReferralStats>({

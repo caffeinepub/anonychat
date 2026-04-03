@@ -38,7 +38,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { User as UserType } from "./backend";
 import { AdminPanel } from "./components/AdminPanel";
@@ -61,6 +61,7 @@ import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useNotifications } from "./hooks/useNotifications";
 import { usePWA } from "./hooks/usePWA";
 import {
+  clearCachedMe,
   useGetMe,
   useRegister,
   useSetOnline,
@@ -457,9 +458,11 @@ function ProfileTab({
 function LandingPage({
   onGenerate,
   loading,
+  cachedAnonId,
 }: {
   onGenerate: () => void;
   loading: boolean;
+  cachedAnonId: string | null;
 }) {
   return (
     <div className="text-center space-y-8 px-4" data-ocid="landing.section">
@@ -524,9 +527,15 @@ function LandingPage({
         </Button>
       </div>
 
-      <div className="font-mono text-xs text-muted-foreground/30 select-none">
-        +777 •••• ••••
-      </div>
+      {cachedAnonId ? (
+        <div className="font-mono text-xs text-primary/40 select-none">
+          {cachedAnonId}
+        </div>
+      ) : (
+        <div className="font-mono text-xs text-muted-foreground/30 select-none">
+          +777 •••• ••••
+        </div>
+      )}
     </div>
   );
 }
@@ -602,6 +611,17 @@ export default function App() {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showNotifCenter, setShowNotifCenter] = useState(false);
 
+  // Fix 3: read cached ID for loading/landing screens
+  const cachedAnonId = useMemo(() => {
+    try {
+      const cached = localStorage.getItem("anonychat_me_cache");
+      if (cached) return JSON.parse(cached).anonymousId as string;
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }, []);
+
   const { data: unreadCount = 0 } = useUnreadCount(me?.anonymousId ?? "");
   const { canInstall, install, dismiss } = usePWA();
 
@@ -655,11 +675,17 @@ export default function App() {
     }
   };
 
+  // Fix 2: hasRegisteredRef prevents double-call in Strict Mode or re-renders
+  const hasRegisteredRef = useRef(false);
+
   const doRegister = useCallback(async () => {
+    if (hasRegisteredRef.current) return;
+    hasRegisteredRef.current = true;
     setIsRegistering(true);
     try {
       await register.mutateAsync();
     } catch {
+      hasRegisteredRef.current = false; // allow retry on real error
       toast.error("Failed to generate ID. Please try again.");
     } finally {
       setIsRegistering(false);
@@ -689,6 +715,12 @@ export default function App() {
     doRegister,
     register.isPending,
   ]);
+
+  // Fix 4: clear cached ID on logout
+  const handleLogout = useCallback(() => {
+    clearCachedMe();
+    clear();
+  }, [clear]);
 
   // Track which contact is active (for read-marking on tab switch)
   const [chatActiveContact, setChatActiveContact] = useState<string | null>(
@@ -850,7 +882,7 @@ export default function App() {
                     <DropdownMenuSeparator className="bg-white/5" />
                     <DropdownMenuItem
                       className="gap-2 cursor-pointer hover:bg-white/5 text-red-400 focus:text-red-400"
-                      onClick={clear}
+                      onClick={handleLogout}
                       data-ocid="nav.button"
                     >
                       <LogOut className="w-4 h-4" />
@@ -922,6 +954,12 @@ export default function App() {
               <p className="text-sm text-muted-foreground">
                 {isRegistering ? "Kimliğin oluşturuluyor..." : "Yükleniyor..."}
               </p>
+              {/* Fix 3: show cached ID so users know their account still exists */}
+              {cachedAnonId && (
+                <p className="text-xs text-muted-foreground font-mono opacity-50">
+                  {cachedAnonId}
+                </p>
+              )}
             </div>
           </div>
         ) : !me ? (
@@ -933,6 +971,7 @@ export default function App() {
                 loginStatus === "logging-in" ||
                 (isLoggedIn && actorFetching)
               }
+              cachedAnonId={cachedAnonId}
             />
           </div>
         ) : (

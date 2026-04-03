@@ -22,15 +22,56 @@ export interface PublicUserProfile {
   lon: number | null;
 }
 
+const CACHED_ME_KEY = "anonychat_me_cache";
+
+export function clearCachedMe() {
+  localStorage.removeItem(CACHED_ME_KEY);
+}
+
 export function useGetMe() {
   const { actor, isFetching } = useActor();
   return useQuery<User | null>({
     queryKey: ["me"],
     queryFn: async () => {
       if (!actor) return null;
-      return actor.getMe();
+      const result = await actor.getMe();
+      if (result) {
+        // Cache to localStorage so ID is available immediately on next visit
+        try {
+          localStorage.setItem(
+            CACHED_ME_KEY,
+            JSON.stringify({
+              anonymousId: result.anonymousId,
+              username: result.username ?? null,
+              isOnline: result.isOnline,
+            }),
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+      return result;
     },
     enabled: !!actor && !isFetching,
+    // Use cached data as placeholder while loading
+    placeholderData: () => {
+      try {
+        const cached = localStorage.getItem(CACHED_ME_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return {
+            ...parsed,
+            id: BigInt(0),
+            createdAt: BigInt(0),
+            lat: null,
+            lon: null,
+          } as User;
+        }
+      } catch {
+        /* ignore */
+      }
+      return null;
+    },
   });
 }
 
